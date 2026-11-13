@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+<p class="crumbs"><a href="{{ root }}p/{{ d.publisher_slug }}.html">{{ d.publisher or "Unknown publisher" }}</a></p>
+<h1>{{ d.title or "(no title)" }}</h1>
+{% if d.title_ga %}<p class="ga" lang="ga">{{ d.title_ga }}</p>{% endif %}
+
+<dl class="facts">
+  {% if d.time %}<dt>Time</dt><dd>{{ d.time }}</dd>{% endif %}
+  {% if d.geo %}<dt>Location keys</dt><dd>{{ d.geo }}</dd>{% endif %}
+  {% if d.places %}<dt>Councils covered</dt><dd>{{ d.places }}</dd>{% endif %}
+  {% if d.themes %}<dt>Themes</dt><dd>{{ d.themes }}</dd>{% endif %}
+  {% if d.keywords %}<dt>Keywords</dt><dd>{{ d.keywords }}</dd>{% endif %}
+  {% if d.periodicity %}<dt>Updated</dt><dd>{{ d.periodicity }}</dd>{% endif %}
+  {% if d.licence %}<dt>Licence</dt><dd>{{ d.licence }}</dd>{% endif %}
+  {% if d.contact %}<dt>Contact</dt><dd>{{ d.contact }}</dd>{% endif %}
+  <dt>On data.gov.ie</dt><dd><a href="https://data.gov.ie/dataset/{{ d.id }}">{{ d.id }}</a></dd>
+</dl>
+
+{% if d.description %}<div class="description">{{ d.description }}</div>{% endif %}
+
+<section class="use">
+<h2>Use the data</h2>
+{% if d.queries %}
+<p class="intro">Copy a query into psql (<code>psql -d gis</code>), Emacs or Metabase.</p>
+{% for qy in d.queries %}
+<div class="q"><span class="label">{{ qy.label }}{% if qy.rows is not none %} · {{ "{:,}".format(qy.rows) }} rows{% endif %}</span>
+<pre><code>{{ qy.query }}</code></pre><button type="button" class="copy">Copy</button></div>
+{% endfor %}
+{% else %}
+<p class="intro">Not loaded into Postgres (see the files below for why); the files are on the server.</p>
+{% endif %}
+{% if d.folder %}
+<div class="q"><span class="label">Folder on the server</span><pre><code>{{ d.folder }}</code></pre><button type="button" class="copy">Copy</button></div>
+{% endif %}
+</section>
+
+<h2>Files</h2>
+<table class="files">
+<thead><tr><th>File</th><th>Is really</th><th>Size</th><th>Notes</th></tr></thead>
+<tbody>
+{% for f in files %}
+<tr>
+  <td>{% if f.href %}<a href="{{ f.href }}">{{ f.title or f.name }}</a>{% else %}{{ f.title or f.name }}{% endif %}
+      <div class="fmt">{{ f.format or "" }}{% if f.status != "done" %} · {{ f.status }}{% endif %}</div></td>
+  <td>{{ f.kind or "" }}</td>
+  <td>{{ f.size or "" }}</td>
+  <td>{{ f.notes or "" }}{% if f.map %} <a href="{{ f.map }}">Open in map</a>{% endif %}{% if f.table %} <code>{{ f.table }}</code>{% endif %}</td>
+</tr>
+{% if f.server %}
+<tr class="preview"><td colspan="4">
+  <div class="q"><span class="label">On the server</span><pre><code>{{ f.server }}</code></pre><button type="button" class="copy">Copy</button></div>
+  {% if f.members %}<div class="label">Inside the zip: {{ f.members | join(", ") }}</div>{% endif %}
+  {% for qy in f.queries %}
+  <div class="q"><span class="label">{{ qy.label }}{% if qy.rows is not none %} · {{ "{:,}".format(qy.rows) }} rows{% endif %}</span><pre><code>{{ qy.query }}</code></pre><button type="button" class="copy">Copy</button></div>
+  {% endfor %}
+</td></tr>
+{% endif %}
+{% for p in f.previews %}
+<tr class="preview"><td colspan="4">{{ p | safe }}</td></tr>
+{% endfor %}
+{% endfor %}
+</tbody>
+</table>
+
+{% if joinable %}
+<h2>Can be joined with</h2>
+<p class="intro">Datasets keyed by the same kind of location, with overlapping years. "Same CSO classification" means identical area lists, so the join is exact.</p>
+<table class="datasets">
+<thead><tr><th>Dataset</th><th>How</th><th>Years in common</th></tr></thead>
+<tbody>
+{% for j in joinable %}
+<tr><td><a href="{{ root }}d/{{ j.id }}.html">{{ j.title }}</a></td><td>{{ j.how }}</td><td>{{ j.years if j.years is not none else "" }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% endif %}
+
+{% if similar %}
+<h2>Similar datasets</h2>
+<p class="intro">Closest in meaning (embeddings of the dataset descriptions, columns and layers).</p>
+<ul class="similar">
+{% for s in similar %}<li><a href="{{ root }}d/{{ s.id }}.html">{{ s.title }}</a> <span class="note">{{ s.publisher }}</span></li>{% endfor %}
+</ul>
+{% endif %}
+<script>
+document.addEventListener("click", e => {
+  if (!e.target.classList.contains("copy")) return;
+  const text = e.target.parentElement.querySelector("code").innerText;
+  const done = () => { e.target.textContent = "Copied"; setTimeout(() => e.target.textContent = "Copy", 1500); };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done);
+  } else {                      // plain http: the clipboard API isn't available
+    const t = document.createElement("textarea");
+    t.value = text; document.body.appendChild(t); t.select();
+    document.execCommand("copy"); t.remove(); done();
+  }
+});
+</script>
+{% endblock %}

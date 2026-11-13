@@ -1,0 +1,11 @@
+[Unit]
+Description=dgi-explore semantic search (http://scierstar/dgi/search)
+After=network.target postgresql.service
+
+[Service]
+WorkingDirectory=%h/dgi-explore
+ExecStart=%h/.local/bin/uv run uvicorn dgi_explore.search_app:app --host 127.0.0.1 --port 8002
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

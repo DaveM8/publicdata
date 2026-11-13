@@ -1,0 +1,11 @@
+[Unit]
+Description=Datasette over the dgi-explore catalogue (http://scierstar/datasette/)
+After=network.target
+
+[Service]
+WorkingDirectory=%h/dgi-explore
+ExecStart=%h/.local/bin/uv run datasette serve catalog.db --immutable catalog.db --metadata datasette-metadata.json --host 127.0.0.1 --port 8001 --setting base_url /datasette/ --setting sql_time_limit_ms 5000
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

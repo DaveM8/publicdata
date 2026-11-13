@@ -1,0 +1,26 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Built outputs (made by the steps, large)
+catalog.db
+datasette-metadata.json
+deploy/metabase-data/
+
+# Books and other copyrighted reading: never publish
+*.epub
+*.pdf
+
+# Keys and passwords
+.env
+*.env
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Personal working notes (the published notes live in ~/org)
+/*.org

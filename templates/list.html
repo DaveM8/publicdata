@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ heading }}</h1>
+{% if intro %}<p class="intro">{{ intro }}</p>{% endif %}
+{% if groups %}
+<ul class="groups">
+{% for g in groups %}
+  <li><a href="{{ g.href }}">{{ g.name }}</a> <span class="n">{{ g.n }}</span>{% if g.note %} <span class="note">{{ g.note }}</span>{% endif %}</li>
+{% endfor %}
+</ul>
+{% endif %}
+{% if datasets %}
+<table class="datasets">
+<thead><tr><th>Dataset</th><th>Publisher</th><th>Location</th><th>Time</th><th>Files</th></tr></thead>
+<tbody>
+{% for d in datasets %}
+<tr>
+  <td><a href="{{ root }}d/{{ d.id }}.html">{{ d.title or "(no title)" }}</a>{% if d.title_ga %}<div class="ga" lang="ga">{{ d.title_ga }}</div>{% endif %}</td>
+  <td>{{ d.publisher or "" }}</td>
+  <td>{{ d.geo or "" }}</td>
+  <td>{{ d.time or "" }}</td>
+  <td>{{ d.kinds or "" }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% endif %}
+{% endblock %}

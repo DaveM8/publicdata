@@ -1,0 +1,37 @@
+:root { --fg: #1d2330; --muted: #5b6475; --line: #dde1e8; --bg: #fbfbfc; --accent: #1f6f5c; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg: #e6e8ec; --muted: #9aa3b2; --line: #333a46; --bg: #15181e; --accent: #6cc4a8; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--fg); background: var(--bg); }
+header { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: baseline; padding: .8rem 1rem; border-bottom: 1px solid var(--line); }
+header .home { font-weight: 600; color: var(--fg); text-decoration: none; }
+nav a { margin-right: 1rem; }
+main { max-width: 72rem; margin: 0 auto; padding: 1rem; }
+footer { color: var(--muted); font-size: 13px; padding: 1rem; border-top: 1px solid var(--line); }
+a { color: var(--accent); }
+h1 { font-size: 1.5rem; margin: .5rem 0; }
+h2 { font-size: 1.15rem; margin-top: 2rem; }
+.ga { color: var(--muted); font-style: italic; }
+.intro, .note, .fmt, .crumbs { color: var(--muted); font-size: 13px; }
+.n { color: var(--muted); }
+dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: .2rem 1rem; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; }
+.description { white-space: pre-wrap; margin: 1rem 0; max-width: 50rem; }
+table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; }
+th, td { text-align: left; vertical-align: top; padding: .35rem .6rem; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 500; font-size: 13px; }
+tr.preview td { background: color-mix(in srgb, var(--line) 25%, transparent); font-size: 13px; }
+tr.preview table { font-size: 12px; }
+ul.groups { columns: 2 18rem; padding-left: 1.2rem; }
+code { font-size: 12px; }
+
+section.use { margin: 1.5rem 0; padding: .8rem 1rem; border: 1px solid var(--line); border-radius: 6px; }
+section.use h2 { margin-top: 0; }
+.q { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .6rem; margin: .4rem 0; }
+.q .label, div.label { flex-basis: 100%; color: var(--muted); font-size: 12px; }
+.q pre { margin: 0; flex: 1; min-width: 0; overflow-x: auto; background: color-mix(in srgb, var(--line) 35%, transparent);
+         padding: .3rem .5rem; border-radius: 4px; }
+.q code { font-size: 12.5px; white-space: pre; }
+button.copy { font: inherit; font-size: 12px; padding: .2rem .6rem; cursor: pointer; }
