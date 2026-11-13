@@ -1,0 +1,26 @@
+<form class="ask" method="post" action="{{ root }}/ask">
+  <label for="question">{{ t.question_label }}</label>
+  {% if error %}<p class="error" id="question-error" role="alert">{{ error }}</p>{% endif %}
+  <div class="ask-row">
+    <textarea id="question" name="question" rows="2" maxlength="{{ max_question }}" required
+              aria-describedby="question-hint{% if error %} question-error{% endif %}"
+              {% if autofocus %}autofocus{% endif %}>{{ question or "" }}</textarea>
+    <button type="submit">{{ t.ask_button }}</button>
+  </div>
+  <p class="hint" id="question-hint">{{ t.question_hint }}</p>
+  <details class="own-key">
+    <summary>{{ t.own_key_summary }}</summary>
+    <p>{{ t.own_key_help }}</p>
+    <div class="fields">
+      <label for="provider">{{ t.own_key_provider }}</label>
+      <select id="provider" name="provider">
+        <option value="">{{ t.provider_site }}</option>
+        {% for value, label in own_key_providers.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select>
+      <label for="key">{{ t.own_key_key }}</label>
+      <input id="key" name="key" type="password" autocomplete="off" spellcheck="false">
+      <label for="model">{{ t.own_key_model }}</label>
+      <input id="model" name="model" type="text" autocomplete="off" spellcheck="false">
+    </div>
+  </details>
+</form>

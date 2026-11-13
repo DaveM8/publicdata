@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ t.working_title }} · {{ t.site_name }}{% endblock %}
+{% block head %}
+<noscript><meta http-equiv="refresh" content="5"></noscript>
+<script src="{{ root }}/static/ask.js" defer></script>
+{% endblock %}
+{% block content %}
+<p class="asked">{{ t.you_asked }}</p>
+<h1 class="question">{{ row.question }}</h1>
+<section class="working" aria-labelledby="working-title">
+  <h2 id="working-title"><span class="pulse" aria-hidden="true"></span>{{ t.working_title }}</h2>
+  <ol id="steps" class="steps" aria-live="polite" data-events="{{ root }}/a/{{ row.id }}/events"
+      data-shown="{{ steps | length }}">
+    {% for s in steps %}<li>{{ s }}</li>{% endfor %}
+  </ol>
+  <p class="hint">{{ t.working_wait }}</p>
+</section>
+{% endblock %}

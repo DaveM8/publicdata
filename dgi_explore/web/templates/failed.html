@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ t.failed_title }} · {{ t.site_name }}{% endblock %}
+{% block content %}
+<p class="asked">{{ t.you_asked }}</p>
+<h1 class="question">{{ row.question }}</h1>
+<section class="failed" role="alert">
+  <h2>{{ t.failed_title }}</h2>
+  <p>{{ reason }}</p>
+  <p><a class="button" href="{{ root }}/?q={{ row.question | urlencode }}">{{ t.try_again }}</a></p>
+</section>
+{% endblock %}

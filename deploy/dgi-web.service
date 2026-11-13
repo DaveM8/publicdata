@@ -1,0 +1,13 @@
+[Unit]
+Description=Ask about Ireland: the public question page (dgi-explore web)
+After=network.target postgresql.service
+
+[Service]
+WorkingDirectory=%h/dgi-explore
+# Served by nginx at /ask/ (see nginx-dgi.conf). Provider and limits: dgi_explore/web/app.py.
+Environment=DGI_WEB_ROOT=/ask
+ExecStart=%h/.local/bin/uv run dgi-explore web --port 8003
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

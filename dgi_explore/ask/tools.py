@@ -332,6 +332,35 @@ def run_sql(sql):
     return out
 
 
+_IDENT = re.compile(r"[a-z_][a-z0-9_]*")
+
+
+def sources_for(sqls):
+    """The CSO tables named in these queries, for the list of sources under an answer."""
+    names = sorted({w for q in sqls for w in _IDENT.findall(q.lower())})
+    if not names:
+        return []
+    with _ro_conn() as conn:
+        rows = conn.execute("""
+            SELECT
+                   i.view_name
+                 , i.matrix
+                 , i.label
+                 , left(i.updated, 10)
+                 , i.time_from
+                 , i.time_to
+                 , d.uri
+              FROM dgi_ask.cso_info i
+                   LEFT JOIN dgi_cat.dataset d ON d.id = i.dataset_id
+             WHERE i.view_name = ANY(%s)
+          ORDER BY i.matrix""", (names,)).fetchall()
+    return [{"table": v, "code": m, "title": label, "updated": upd,
+             "period": t0 if t0 == t1 else f"{t0} to {t1}",
+             "publisher": "Central Statistics Office",
+             "link": f"https://data.cso.ie/table/{m}", "catalogue_link": uri}
+            for v, m, label, upd, t0, t1, uri in rows]
+
+
 FUNCS = {"search_tables": search_tables, "describe_table": describe_table,
          "find_place": find_place, "run_sql": run_sql}
 

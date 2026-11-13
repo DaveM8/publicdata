@@ -101,6 +101,11 @@ def cmd_ask(args):
               model=args.model, effort=args.effort)
 
 
+def cmd_web(args):
+    import uvicorn
+    uvicorn.run("dgi_explore.web.app:app", host=args.host, port=args.port, log_level="info")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="dgi-explore", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -182,6 +187,11 @@ def main(argv=None):
     s.add_argument("--model", help="model id (default: DGI_ASK_MODEL, or the provider's usual model)")
     s.add_argument("--effort", help="low, medium, high, xhigh or max (default: DGI_ASK_EFFORT or high)")
     s.set_defaults(func=cmd_ask)
+
+    s = sub.add_parser("web", help="run the public Ask site (settings: see dgi_explore/web/app.py)")
+    s.add_argument("--host", default="127.0.0.1")
+    s.add_argument("--port", type=int, default=8003)
+    s.set_defaults(func=cmd_web)
 
     args = p.parse_args(argv)
     setup_logging(args.verbose)

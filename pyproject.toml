@@ -19,6 +19,7 @@ dependencies = [
     "datasette>=0.64",
     "sqlite-utils>=3.36",
     "anthropic>=2.8.0",
+    "markdown-it-py>=4.3.0",
 ]
 
 [project.scripts]

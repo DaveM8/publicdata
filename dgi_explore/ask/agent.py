@@ -52,12 +52,50 @@ one you used.
 - The data is a copy taken in October 2026; each table shows when the CSO \
 last updated it.
 
-How to answer: start with the answer itself in one or two plain sentences. \
-Add a small table only when several figures are being compared. Use everyday \
-words; do not mention SQL, table codes or column names in the answer. Finish \
-with a line beginning "Source:" that names the CSO table by its title and \
-code, the year of the data and its link.\
+How to answer: start with the answer itself in one or two plain sentences, \
+then anything the reader needs to understand it. Use everyday words; do not \
+mention SQL, table codes or column names. Keep it short.
+
+Tables: when the answer involves three or more figures of the same kind (a \
+ranking, a comparison between places, a run of years), show them with \
+show_table, giving the result_id of a run_sql result; the page draws the \
+table from those exact rows. Do not type such figures out yourself as a \
+table or a list, because retyping is where numbers go wrong. In your \
+sentences, mention only the one or two figures that answer the question. \
+Run a query that returns just the rows and columns worth showing, in a \
+sensible order, before you call show_table. One table is usually enough.
+
+Say only what you have checked. Do not state what an area includes or leaves \
+out (for example whether a county figure includes its city), or how a figure \
+was collected, unless the table's notes or a query result in this \
+conversation shows it. If it matters and you could not check it, say that it \
+is unclear.
+
+Sources: do not write a source line or any links. The page lists, under your \
+answer, every CSO table you queried, with its title, year and link.\
 """
+
+MAX_TABLES = 3
+
+SHOW_TABLE = {
+    "name": "show_table",
+    "description": (
+        "Put a table on the answer page, drawn from the rows of an earlier run_sql result. "
+        "Give that result's result_id, a short plain title saying what the table shows "
+        "(with the year and unit), and a plain-word heading for each column, in order. "
+        f"At most {MAX_TABLES} tables per answer."),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "result_id": {"type": "string", "description": "The result_id returned by run_sql, e.g. r2."},
+            "title": {"type": "string"},
+            "headings": {"type": "array", "items": {"type": "string"},
+                         "description": "One heading per column of the result, in order."},
+        },
+        "required": ["result_id", "title", "headings"],
+        "additionalProperties": False,
+    },
+}
 
 
 @dataclass
@@ -65,6 +103,8 @@ class Answer:
     question: str
     text: str = ""
     steps: list = field(default_factory=list)     # [{tool, input, result}]
+    tables: list = field(default_factory=list)    # [{title, headings, columns, rows, sql}]
+    sources: list = field(default_factory=list)   # the CSO tables queried (tools.sources_for)
     stop: str = ""
     model: str = ""
     tokens_in: int = 0
@@ -80,8 +120,9 @@ def answer(question, provider=None, model=None, effort=None, api_key=None, on_st
     """Run the loop for one question. on_step(step) is called after each tool call."""
     t0 = time.time()
     a = Answer(question=question)
-    chat = llm.open_chat(SYSTEM, tools.SPECS, provider=provider, model=model, effort=effort,
-                         api_key=api_key)
+    chat = llm.open_chat(SYSTEM, tools.SPECS + [SHOW_TABLE], provider=provider, model=model,
+                         effort=effort, api_key=api_key)
+    queries = {}       # result_id -> {sql, columns, rows}: every successful query
     reply = chat.user(question)
     rounds = 0
     while True:
@@ -93,8 +134,17 @@ def answer(question, provider=None, model=None, effort=None, api_key=None, on_st
         rounds += 1
         results = []
         for call in reply.tool_calls:
-            out = ({"error": "the arguments were not valid JSON; send them again"}
-                   if "_bad_json" in call.input else tools.call(call.name, call.input))
+            if "_bad_json" in call.input:
+                out = {"error": "the arguments were not valid JSON; send them again"}
+            elif call.name == "show_table":
+                out = _show_table(a, queries, call.input)
+            else:
+                out = tools.call(call.name, call.input)
+                if call.name == "run_sql" and "rows" in out:
+                    rid = f"r{len(queries) + 1}"
+                    queries[rid] = {"sql": call.input.get("sql", ""), "columns": out["columns"],
+                                    "rows": out["rows"]}
+                    out = {"result_id": rid, **out}
             text = json.dumps(out, ensure_ascii=False, default=str)
             if len(text) > MAX_RESULT_CHARS:
                 text = text[:MAX_RESULT_CHARS] + " ...[cut: result too long, ask for less]"
@@ -115,9 +165,32 @@ def answer(question, provider=None, model=None, effort=None, api_key=None, on_st
     a.text, a.stop = reply.text, reply.stop
     if reply.stop == "refused":
         a.text = a.text or "The model declined to answer this question."
+    try:
+        a.sources = tools.sources_for([r["sql"] for r in queries.values()])
+    except Exception:
+        log.exception("could not list the sources")
     a.seconds = time.time() - t0
     _log(a)
     return a
+
+
+def _show_table(a, results, args):
+    """The show_table tool: mark a query result for display. The rows are ours, not the model's."""
+    r = results.get(str(args.get("result_id", "")).strip())
+    if not r:
+        return {"error": "no such result_id; use one returned by run_sql in this conversation"}
+    if not r["rows"]:
+        return {"error": "that result has no rows"}
+    if len(a.tables) >= MAX_TABLES:
+        return {"error": f"an answer can show at most {MAX_TABLES} tables"}
+    headings = [str(h) for h in (args.get("headings") or [])]
+    if len(headings) != len(r["columns"]):
+        return {"error": f"give exactly {len(r['columns'])} headings, one for each of: "
+                         + ", ".join(r["columns"])}
+    a.tables.append({"title": str(args.get("title") or "").strip() or "Table",
+                     "headings": headings, "columns": r["columns"], "rows": r["rows"],
+                     "sql": r["sql"]})
+    return {"ok": True, "rows_shown": len(r["rows"])}
 
 
 def _log(a):
@@ -126,6 +199,8 @@ def _log(a):
            "question": a.question, "answer": a.text, "stop": a.stop, "model": a.model,
            "tokens_in": a.tokens_in, "tokens_out": a.tokens_out, "cost_usd": a.cost,
            "seconds": round(a.seconds, 1),
+           "tables": [{"title": t["title"], "rows": len(t["rows"])} for t in a.tables],
+           "sources": [x["code"] for x in a.sources],
            "steps": [{"tool": s["tool"], "input": s["input"],
                       "error": s["result"].get("error")} for s in a.steps]}
     with open(db.STATE_DIR / "ask.jsonl", "a", encoding="utf-8") as f:
@@ -150,6 +225,15 @@ def cli(question, show_steps=False, provider=None, model=None, effort=None):
     a = answer(question, provider=provider, model=model, effort=effort,
                on_step=_show_step if show_steps else None)
     print(a.text)
+    for t in a.tables:
+        print(f"\n{t['title']}\n" + " | ".join(t["headings"]))
+        for row in t["rows"]:
+            print(" | ".join("" if v is None else f"{v:,.10g}" if isinstance(v, (int, float))
+                             else str(v) for v in row))
+    if a.sources:
+        print("\nSources:")
+        for x in a.sources:
+            print(f"  {x['title']} ({x['code']}), {x['period']}, CSO, updated {x['updated']}: {x['link']}")
     cost = f"about ${a.cost:.3f}" if a.cost is not None else "cost unknown"
     print(f"\n[{a.model}, {len(a.steps)} tool calls, {a.seconds:.0f}s, "
           f"{a.tokens_in:,} tokens in, {a.tokens_out:,} out, {cost}]", file=sys.stderr)

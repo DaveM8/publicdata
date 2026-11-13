@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ row.question }} · {{ t.site_name }}{% endblock %}
+{% block content %}
+<p class="asked">{{ t.you_asked }}</p>
+<h1 class="question">{{ row.question }}</h1>
+
+<section class="answer" aria-labelledby="answer-title">
+  <h2 id="answer-title" class="quiet">{{ t.answer_heading }}</h2>
+  <div class="prose">{{ row.answer_md | markdown }}</div>
+
+  {% for tb in tables %}
+  <figure class="figures">
+    <figcaption>{{ tb.title }}</figcaption>
+    <div class="scroll" tabindex="0" role="group" aria-label="{{ tb.title }}">
+      <table>
+        <thead><tr>{% for h in tb.headings %}<th scope="col"{% if tb.numeric[loop.index0] %} class="n"{% endif %}>{{ h }}</th>{% endfor %}</tr></thead>
+        <tbody>
+        {% for r in tb.rows %}<tr>{% for v in r %}{% if loop.first and not tb.numeric[0] %}<th scope="row">{{ v | num }}</th>{% else %}<td{% if tb.numeric[loop.index0] %} class="n"{% endif %}>{{ v | num }}</td>{% endif %}{% endfor %}</tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="downloads">
+      <a class="button" href="{{ root }}/a/{{ row.id }}/table/{{ loop.index }}.xlsx">{{ t.download_excel }}</a>
+      <a href="{{ root }}/a/{{ row.id }}/table/{{ loop.index }}.csv">{{ t.download_csv }}</a>
+    </p>
+  </figure>
+  {% endfor %}
+</section>
+
+<section class="sources" aria-labelledby="sources-title">
+  <h2 id="sources-title">{{ t.sources_heading }}</h2>
+  {% if row.sources %}
+  <ul>
+    {% for s in row.sources %}
+    <li>
+      <strong>{{ s.title }}</strong><br>
+      {{ t.source_line.format(code=s.code, period=s.period, updated=s.updated) }}<br>
+      <a href="{{ s.link }}" rel="noopener">{{ t.source_open }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p>{{ t.no_sources }}</p>{% endif %}
+  <p class="hint">{{ t.check_note }}</p>
+</section>
+
+<details class="how">
+  <summary>{{ t.how_summary }}</summary>
+  <p>{{ t.how_intro }}</p>
+  <ol>
+    {% for s in row.steps %}
+    <li>{{ s.say }}{% if s.sql %}<pre><code>{{ s.sql }}</code></pre>{% endif %}</li>
+    {% endfor %}
+  </ol>
+  <p class="hint">{{ t.answered_by.format(model=row.model, seconds=row.seconds | round | int, date=when) }}
+  {% if row.own_key %}{{ t.answered_own_key }}{% endif %}</p>
+</details>
+
+<section class="feedback" id="feedback" aria-labelledby="feedback-title">
+  {% if thanks or row.feedback %}
+  <p role="status">{{ t.feedback_thanks }}</p>
+  {% else %}
+  <form method="post" action="{{ root }}/a/{{ row.id }}/feedback">
+    <h2 id="feedback-title">{{ t.feedback_q }}</h2>
+    <button name="vote" value="yes" class="plain">{{ t.feedback_yes }}</button>
+    <button name="vote" value="no" class="plain">{{ t.feedback_no }}</button>
+  </form>
+  {% endif %}
+</section>
+
+<section class="again" aria-labelledby="again-title">
+  <h2 id="again-title">{{ t.ask_another }}</h2>
+  {% set question = "" %}{% set error = none %}
+  {% include "_askform.html" %}
+</section>
+{% endblock %}

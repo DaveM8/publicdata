@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ t.site_name }}{% endblock %}</title>
+<link rel="stylesheet" href="{{ root }}/static/style.css">
+{% block head %}{% endblock %}
+</head>
+<body>
+<a class="skip" href="#main">{{ t.skip }}</a>
+<header class="top">
+  <a class="name" href="{{ root }}/">{{ t.site_name }}</a>
+  <nav aria-label="Site">
+    <a href="{{ root }}/">{{ t.nav_ask }}</a>
+    <a href="{{ root }}/about">{{ t.nav_about }}</a>
+  </nav>
+</header>
+<main id="main">
+{% block content %}{% endblock %}
+</main>
+<footer class="foot">
+  <p>{{ t.footer }}</p>
+</footer>
+</body>
+</html>

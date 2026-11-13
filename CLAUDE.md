@@ -9,10 +9,11 @@ dgi-explore indexes, links and loads the data.gov.ie mirror (`/mnt/storage/datag
 ```sh
 uv run dgi-explore <step> [-n]          # every step can be re-run; -n = dry run where offered
 uv run dgi-explore -v <step>            # debug logging
-uv run pytest                           # all tests (tests/test_textio.py)
+uv run pytest                           # all tests (tests/test_textio.py, tests/test_web.py)
 uv run pytest tests/test_textio.py -k bom   # one test or a group of tests
 bash deploy/refresh.sh                  # full refresh in order; run inside tmux session dgx
 uv run dgi-explore ask-prepare          # rebuild the per-table CSO views (dgi_cso) and dgi_ask; run after load-cso
+uv run dgi-explore web                  # the public Ask site on 127.0.0.1:8003 (DGI_WEB_PROVIDER / DGI_WEB_MODEL choose who answers)
 uv run dgi-explore ask --steps "..."    # answer a question from the CSO tables (calls a model API, costs money; --provider deepseek|kimi|anthropic|openai)
 ```
 
@@ -31,6 +32,7 @@ Some tests read real mirror files and are skipped if the mirror isn't mounted. T
 - `load_geo.py`/`profile.py` call `ogr2ogr` as a subprocess, with the encoding from `textio.shapefile_encoding`. Layers go to `dgi_geo.geo_*` in ITM (EPSG:2157) with a `geom` column. Zip members are extracted to `/mnt/pdf_workspace/dgx-tmp/`. The parallel steps use `multiprocessing.Pool`, and embed uses threads.
 - `embed.py`: OpenAI `text-embedding-3-large` at 1024 dimensions, paced by `--tpm`. The key comes from `OPENAI_API_KEY` or `~/learnarr/.env`. Only items whose text changed are sent again. Run `embed -n` first to see the cost.
 - `dgi_explore/ask/`: question answering (plan and decisions: `~/org/20261111_dgi-search-plan.org`). `prepare.py` builds one view per CSO table in `dgi_cso` (a named column per dimension, plus `value` and `unit`) and the index `dgi_ask.cso_info` (`sql/45_ask.sql`). `tools.py` holds the four tools the model calls (`search_tables`, `describe_table`, `find_place`, `run_sql`); `run_sql` is read-only with a timeout and a row limit. `llm.py` is the **only** module that talks to a model provider, so the model can be swapped by setting `DGI_ASK_PROVIDER`/`DGI_ASK_MODEL`; keep provider SDK calls out of every other file. DeepSeek is the default and Kimi is available (keys in `~/.config/dgi-explore/keys.env`); Claude and OpenAI are bring-your-own-key only. Model-written SQL runs as the restricted login `dgi_ask` when a `dgi_ask` line exists in `~/.pgpass`, otherwise as the normal login set read-only. `agent.py` is the loop and the system prompt, and logs to `~/.local/state/dgi-explore/ask.jsonl`.
+- `dgi_explore/web/`: release 1 of the public site (`uv run dgi-explore web`, port 8003, schema `app` from `sql/70_app.sql`). Server-rendered Jinja2 pages, one stylesheet, one small script (`static/ask.js`) and nothing loaded from other sites; keep it that way (no CDNs, no trackers, no cookies). `app.py` holds the routes and settings (`DGI_WEB_*`), `runner.py` answers each question in a background thread and feeds the progress events, `store.py` is the `app.answer` table, `files.py` makes the Excel and CSV downloads, and **all page text lives in `messages.py`**. Tables on an answer page come from query rows via the model's `show_table` tool, never from model-typed text; model text is rendered with HTML disabled. A person's own API key is passed to the thread in memory only: never store or log it. `tests/test_web.py` runs without calling a model.
 - Outputs: `site.py` writes to `/var/www/html/dgi/` from `templates/` (Jinja2). `datasette_export.py` writes `catalog.db` + `datasette-metadata.json` here. `search_app.py` is FastAPI on 127.0.0.1:8002 and holds every vector in memory, reloaded hourly. `insights.py` writes `~/org/<YYYYMMDD>_dgi-nuggets.org`, following the `~/org` naming rule. `deploy/` holds the sudo setup, the nginx snippet, the user systemd units and the Metabase script.
 
 ## Cautions

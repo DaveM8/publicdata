@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="ask-title">{{ t.home_title }}</h1>
+<p class="lead">{{ t.home_lead }}</p>
+{% set autofocus = true %}
+{% include "_askform.html" %}
+<section class="examples" aria-labelledby="examples-title">
+  <h2 id="examples-title">{{ t.examples_title }}</h2>
+  <ul>
+    {% for q in t.examples %}<li><a href="{{ root }}/?q={{ q | urlencode }}">{{ q }}</a></li>{% endfor %}
+  </ul>
+</section>
+<p class="note">{{ t.home_note }} Your question is sent to {{ service }} to be answered, so
+please leave out names and other personal details. <a href="{{ root }}/about">{{ t.nav_about }}</a>.</p>
+{% endblock %}
