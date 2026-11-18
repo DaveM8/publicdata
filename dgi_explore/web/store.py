@@ -38,13 +38,13 @@ def qkey(question):
     return " ".join(textio.search_key(question).split()).rstrip("?!. ")
 
 
-def create(question, provider, model, own_key, client):
+def create(question, provider, model, own_key, client, parent=None):
     aid = secrets.token_urlsafe(6)
     with db.connect() as conn:
         conn.execute("""
-            INSERT INTO app.answer (id, question, qkey, status, provider, model, own_key, client)
-            VALUES (%s, %s, %s, 'working', %s, %s, %s, %s)""",
-            (aid, question, qkey(question), provider, model, own_key, client))
+            INSERT INTO app.answer (id, question, qkey, status, provider, model, own_key, client, parent)
+            VALUES (%s, %s, %s, 'working', %s, %s, %s, %s, %s)""",
+            (aid, question, qkey(question), provider, model, own_key, client, parent))
     return aid
 
 
@@ -59,6 +59,30 @@ def get(aid):
                AND status = 'working'
                AND created_at < now() - interval '{STALE_AFTER}'""", (aid,))
         return conn.execute("SELECT * FROM app.answer WHERE id = %s", (aid,)).fetchone()
+
+
+def thread(aid, limit=6):
+    """The finished answers a question follows on from, oldest first, ending with aid itself."""
+    with db.connect(row_factory=dict_row) as conn:
+        return conn.execute("""
+            WITH RECURSIVE up AS (
+                SELECT
+                       a.*
+                     , 1 AS depth
+                  FROM app.answer a
+                 WHERE a.id = %s
+                 UNION ALL
+                SELECT
+                       p.*
+                     , up.depth + 1
+                  FROM app.answer p
+                       JOIN up ON up.parent = p.id
+                 WHERE up.depth < %s
+            )
+              SELECT *
+                FROM up
+               WHERE status = 'done'
+            ORDER BY depth DESC""", (aid, limit)).fetchall()
 
 
 def finish(aid, answer_md, tables, sources, steps, model, tokens_in, tokens_out, cost, seconds):
@@ -101,6 +125,7 @@ def cached(question, provider, model, days=30):
              WHERE qkey = %s
                AND status = 'done'
                AND NOT own_key
+               AND parent IS NULL
                AND provider = %s
                AND coalesce(feedback, 0) >= 0
                AND created_at > now() - interval '{int(days)} days'

@@ -31,7 +31,7 @@ from markdown_it import MarkdownIt
 from markupsafe import Markup
 
 from ..ask import llm
-from . import files, runner, store
+from . import chart, files, runner, store
 from .messages import t
 
 log = logging.getLogger("dgi")
@@ -117,15 +117,28 @@ def about():
     return page("about.html", daily_limit=DAILY_LIMIT)
 
 
+def _turn(row):
+    """An earlier answer, as the context a follow-up question is read with."""
+    return {"question": row["question"], "answer": row["answer_md"],
+            "tables": [tb["title"] for tb in row["tables"]],
+            "queries": [s["sql"] for s in row["steps"]
+                        if s.get("tool") == "run_sql" and s.get("sql") and not s.get("error")]}
+
+
 @router.post("/ask")
 async def ask(request: Request):
     form = urllib.parse.parse_qs((await request.body()).decode("utf-8", "replace"))
     get = lambda k: (form.get(k) or [""])[0].strip()
     question = " ".join(get("question").split())
     own_provider, own_model, own_key = get("provider"), get("model"), get("key")
+    # A follow-up names the answer it follows on from; an unknown one is ignored.
+    turns = store.thread(get("after")) if get("after") else []
+    parent = turns[-1]["id"] if turns and turns[-1]["id"] == get("after") else None
+    context = [_turn(r) for r in turns] if parent else None
 
     def again(message, status=400):
-        return page("index.html", status=status, question=question[:MAX_QUESTION], error=message)
+        return page("index.html", status=status, question=question[:MAX_QUESTION], error=message,
+                    after=parent)
 
     if not question:
         return again(t.err_empty)
@@ -141,7 +154,7 @@ async def ask(request: Request):
             return again(t.err_key)
     else:
         provider, model, key = PROVIDER, MODEL, None
-        hit = store.cached(question, provider, model)
+        hit = None if parent else store.cached(question, provider, model)
         if hit:
             return RedirectResponse(f"{ROOT}/a/{hit}", status_code=303)
         if store.asked_today(client) >= DAILY_LIMIT:
@@ -149,8 +162,8 @@ async def ask(request: Request):
         if store.spent_this_month() >= MONTHLY_CAP:
             return again(t.err_month, status=429)
 
-    aid = store.create(question, provider, model, bool(key), client)
-    runner.start(aid, question, provider, model, EFFORT, key)
+    aid = store.create(question, provider, model, bool(key), client, parent)
+    runner.start(aid, question, provider, model, EFFORT, key, context)
     return RedirectResponse(f"{ROOT}/a/{aid}", status_code=303)
 
 
@@ -166,8 +179,9 @@ def answer(aid: str, thanks: int = 0):
         reason = {"setup": t.failed_setup, "interrupted": t.failed_interrupted}.get(
             row["error"], t.failed_generic)
         return page("failed.html", row=row, reason=reason)
-    tables = [dict(tb, numeric=_numeric_cols(tb)) for tb in row["tables"]]
-    return page("answer.html", row=row, tables=tables, thanks=bool(thanks),
+    tables = [dict(tb, numeric=_numeric_cols(tb), chart_spec=chart.spec(tb)) for tb in row["tables"]]
+    earlier = store.thread(row["parent"]) if row["parent"] else []
+    return page("answer.html", row=row, tables=tables, thanks=bool(thanks), earlier=earlier,
                 when=row["finished_at"].strftime("%-d %B %Y"))
 
 

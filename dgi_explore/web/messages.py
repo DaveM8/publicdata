@@ -25,7 +25,7 @@ EN = {
         "How has the number of people speaking Irish every day changed?",
         "What is the average rent in Galway city?",
         "How many cattle are there in Cork compared with Kerry?",
-        "What share of homes in Dublin are heated by gas?",
+        "How many people were at work in each year since 2015?",
     ],
     "own_key_summary": "Use your own Claude or OpenAI key",
     "own_key_help": "Answers here are free and come from a low-cost service. If you have an "
@@ -65,7 +65,14 @@ EN = {
     "feedback_thanks": "Thank you. Your reply helps us find and fix wrong answers.",
     "check_note": "Answers are written by a computer program from the official figures. "
                   "Check the source before relying on a number.",
-    "ask_another": "Ask another question",
+    "ask_another": "Ask a follow-up question",
+    "followup_label": "Your follow-up question",
+    "followup_hint": "It is read together with the question and answer above. "
+                     "For example: And how has that changed since 2011?",
+    "new_question": "Ask a new, unrelated question",
+    "thread_title": "Earlier in this conversation",
+    "chart_bar_label": "Bar chart: {title}. The same figures are in the table that follows.",
+    "chart_line_label": "Line chart: {title}. The same figures are in the table that follows.",
     "failed_title": "This question could not be answered",
     "failed_generic": "Something went wrong while working on the answer. Nothing is wrong "
                       "with your question. Please try it again.",

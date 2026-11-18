@@ -9,6 +9,7 @@ Every question, its tool calls and its answer are appended to
 
 import json
 import logging
+import re
 import sys
 import time
 from dataclasses import dataclass, field
@@ -65,6 +66,23 @@ sentences, mention only the one or two figures that answer the question. \
 Run a query that returns just the rows and columns worth showing, in a \
 sensible order, before you call show_table. One table is usually enough.
 
+Charts: show_table can also draw a chart above the table, from the same rows. \
+Ask for chart "line" when the rows are a run of years or other periods in \
+time order: the first column must be the period and every other column a \
+figure in the same unit (at most four such columns, one line each). Ask for \
+chart "bar" when the rows compare places or groups on one figure: at most 35 \
+rows, sorted by the figure. Leave it at "none" when there are only one or two \
+figures, when the columns are in different units, or when a picture would \
+add nothing. If the table has figure columns that should not be drawn (a \
+count of quarters, a total beside a percentage), name the ones to draw in \
+chart_columns.
+
+Follow-up questions: a question may come with earlier questions and answers \
+from the same conversation. Use them to understand what is being asked now \
+("and for Mayo?", "what about ten years ago?"). The tables used before are \
+named, so you can go straight to them. Run a fresh query for every figure \
+you give now, including ones repeated from an earlier answer.
+
 Say only what you have checked. Do not state what an area includes or leaves \
 out (for example whether a county figure includes its city), or how a figure \
 was collected, unless the table's notes or a query result in this \
@@ -91,6 +109,16 @@ SHOW_TABLE = {
             "title": {"type": "string"},
             "headings": {"type": "array", "items": {"type": "string"},
                          "description": "One heading per column of the result, in order."},
+            "chart": {"type": "string", "enum": ["none", "bar", "line"],
+                      "description": "A chart to draw above the table from the same rows. "
+                                     "line: first column is the period, the other columns are "
+                                     "figures in one unit. bar: places or groups compared on "
+                                     "one figure."},
+            "chart_columns": {"type": "array", "items": {"type": "string"},
+                              "description": "The headings of the columns to draw, when not every "
+                                             "figure column belongs in the chart (a count of "
+                                             "quarters, a total beside a share). One for a bar "
+                                             "chart; up to four, in one unit, for a line chart."},
         },
         "required": ["result_id", "title", "headings"],
         "additionalProperties": False,
@@ -103,7 +131,7 @@ class Answer:
     question: str
     text: str = ""
     steps: list = field(default_factory=list)     # [{tool, input, result}]
-    tables: list = field(default_factory=list)    # [{title, headings, columns, rows, sql}]
+    tables: list = field(default_factory=list)    # [{title, headings, columns, rows, sql, chart}]
     sources: list = field(default_factory=list)   # the CSO tables queried (tools.sources_for)
     stop: str = ""
     model: str = ""
@@ -116,14 +144,30 @@ class Answer:
         return llm.cost_usd(self.model, self.tokens_in, self.tokens_out)
 
 
-def answer(question, provider=None, model=None, effort=None, api_key=None, on_step=None):
-    """Run the loop for one question. on_step(step) is called after each tool call."""
+def _with_context(question, context):
+    """The first message of a follow-up: what went before, then the new question."""
+    parts = ["Earlier in this conversation:"]
+    for i, c in enumerate(context, 1):
+        parts.append(f"\nQuestion {i}: {c['question']}\nAnswer {i}: {(c.get('answer') or '')[:3000]}")
+        for title in c.get("tables") or []:
+            parts.append(f"A table was shown with it: {title}")
+        for q in (c.get("queries") or [])[-4:]:
+            parts.append(f"A query that was used for it:\n{q[:1500]}")
+    parts.append("\nThe question to answer now, which follows on from the above:\n" + question)
+    return "\n".join(parts)
+
+
+def answer(question, provider=None, model=None, effort=None, api_key=None, on_step=None,
+           context=None):
+    """Run the loop for one question. on_step(step) is called after each tool call.
+    context: for a follow-up, the earlier turns, oldest first, as
+    [{question, answer, tables: [title], queries: [sql]}]."""
     t0 = time.time()
     a = Answer(question=question)
     chat = llm.open_chat(SYSTEM, tools.SPECS + [SHOW_TABLE], provider=provider, model=model,
                          effort=effort, api_key=api_key)
     queries = {}       # result_id -> {sql, columns, rows}: every successful query
-    reply = chat.user(question)
+    reply = chat.user(_with_context(question, context) if context else question)
     rounds = 0
     while True:
         a.tokens_in += reply.tokens_in
@@ -162,7 +206,16 @@ def answer(question, provider=None, model=None, effort=None, api_key=None, on_st
             a.tokens_in += reply.tokens_in
             a.tokens_out += reply.tokens_out
             break
-    a.text, a.stop = reply.text, reply.stop
+    text = _without_source_lines(reply.text)
+    if not text and reply.stop == "done":
+        # Some models stop after their last tool call having written nothing, or
+        # only a source line. Ask once for the answer itself.
+        reply = chat.user("You have not written the answer for the reader yet. Write it now, "
+                          "in plain words, using only the results above.")
+        a.tokens_in += reply.tokens_in
+        a.tokens_out += reply.tokens_out
+        text = _without_source_lines(reply.text)
+    a.text, a.stop = text, reply.stop
     if reply.stop == "refused":
         a.text = a.text or "The model declined to answer this question."
     try:
@@ -172,6 +225,14 @@ def answer(question, provider=None, model=None, effort=None, api_key=None, on_st
     a.seconds = time.time() - t0
     _log(a)
     return a
+
+
+def _without_source_lines(text):
+    """Drop paragraphs that only name sources: the page lists the sources itself,
+    from the tables that were really queried."""
+    paras = [p for p in re.split(r"\n\s*\n", text or "")
+             if not re.match(r"\s*\**\s*sources?\s*:", p, re.I)]
+    return "\n\n".join(paras).strip()
 
 
 def _show_table(a, results, args):
@@ -189,7 +250,9 @@ def _show_table(a, results, args):
                          + ", ".join(r["columns"])}
     a.tables.append({"title": str(args.get("title") or "").strip() or "Table",
                      "headings": headings, "columns": r["columns"], "rows": r["rows"],
-                     "sql": r["sql"]})
+                     "sql": r["sql"],
+                     "chart": args.get("chart") if args.get("chart") in ("bar", "line") else None,
+                     "chart_columns": [str(h) for h in (args.get("chart_columns") or [])]})
     return {"ok": True, "rows_shown": len(r["rows"])}
 
 

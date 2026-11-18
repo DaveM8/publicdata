@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 {% block title %}{{ row.question }} · {{ t.site_name }}{% endblock %}
 {% block content %}
+{% if earlier %}
+<nav class="thread" aria-labelledby="thread-title">
+  <span id="thread-title">{{ t.thread_title }}</span>
+  <ol>
+    {% for e in earlier %}<li><a href="{{ root }}/a/{{ e.id }}">{{ e.question }}</a></li>{% endfor %}
+  </ol>
+</nav>
+{% endif %}
 <p class="asked">{{ t.you_asked }}</p>
 <h1 class="question">{{ row.question }}</h1>
 
@@ -11,6 +19,7 @@
   {% for tb in tables %}
   <figure class="figures">
     <figcaption>{{ tb.title }}</figcaption>
+    {% if tb.chart_spec %}{% include "_chart.html" %}{% endif %}
     <div class="scroll" tabindex="0" role="group" aria-label="{{ tb.title }}">
       <table>
         <thead><tr>{% for h in tb.headings %}<th scope="col"{% if tb.numeric[loop.index0] %} class="n"{% endif %}>{{ h }}</th>{% endfor %}</tr></thead>
@@ -70,7 +79,8 @@
 
 <section class="again" aria-labelledby="again-title">
   <h2 id="again-title">{{ t.ask_another }}</h2>
-  {% set question = "" %}{% set error = none %}
+  {% set question = "" %}{% set error = none %}{% set after = row.id %}
   {% include "_askform.html" %}
+  <p class="new"><a href="{{ root }}/">{{ t.new_question }}</a></p>
 </section>
 {% endblock %}

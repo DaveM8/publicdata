@@ -9,6 +9,7 @@ arguments and returns a JSON-able dict, so any model provider can call them.
 Plan: ~/org/20261111_dgi-search-plan.org, Level 1.
 """
 
+from decimal import Decimal
 import json
 import logging
 import os
@@ -309,6 +310,15 @@ def find_place(name):
 _SELECT = re.compile(r"^\s*(select|with)\b", re.I)
 
 
+def _plain(v):
+    """A query value as JSON can hold it. Postgres numeric (what avg, round and
+    division give) arrives as Decimal: keep it a number, or the page would treat
+    the column as text and could not total, align or chart it."""
+    if isinstance(v, Decimal):
+        return int(v) if v == v.to_integral_value() and abs(v) < 10 ** 15 else float(v)
+    return v if isinstance(v, (int, float, str, type(None))) else str(v)
+
+
 def run_sql(sql):
     q = sql.strip().rstrip(";").strip()
     if ";" in q:
@@ -325,8 +335,7 @@ def run_sql(sql):
         hint = getattr(e.diag, "message_hint", None) if hasattr(e, "diag") else None
         return {"error": msg + (f" Hint: {hint}" if hint else "")}
     out = {"columns": names,
-           "rows": [[v if isinstance(v, (int, float, str, type(None))) else str(v) for v in r]
-                    for r in rows[:SQL_MAX_ROWS]]}
+           "rows": [[_plain(v) for v in r] for r in rows[:SQL_MAX_ROWS]]}
     if len(rows) > SQL_MAX_ROWS:
         out["truncated"] = f"only the first {SQL_MAX_ROWS} rows are shown; narrow or aggregate the query"
     return out

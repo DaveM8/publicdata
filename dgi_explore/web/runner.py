@@ -59,7 +59,7 @@ def describe(step):
     return tool
 
 
-def _run(aid, question, provider, model, effort, api_key):
+def _run(aid, question, provider, model, effort, api_key, context):
     j = _jobs[aid]
     steps = []
     if not _slots.acquire(blocking=False):
@@ -73,7 +73,7 @@ def _run(aid, question, provider, model, effort, api_key):
             j.say(say)
 
         a = agent.answer(question, provider=provider, model=model, effort=effort,
-                         api_key=api_key, on_step=on_step)
+                         api_key=api_key, on_step=on_step, context=context)
         cost = 0 if api_key else (a.cost or 0)
         if a.stop in ("done", "end_turn") and a.text:
             store.finish(aid, a.text, a.tables, a.sources, steps, a.model, a.tokens_in,
@@ -93,11 +93,12 @@ def _run(aid, question, provider, model, effort, api_key):
         threading.Timer(120, lambda: _jobs.pop(aid, None)).start()
 
 
-def start(aid, question, provider, model, effort=None, api_key=None):
-    """api_key is a person's own key. It lives only in this thread's memory."""
+def start(aid, question, provider, model, effort=None, api_key=None, context=None):
+    """api_key is a person's own key. It lives only in this thread's memory.
+    context: the earlier questions of the conversation (see agent.answer)."""
     with _lock:
         _jobs[aid] = Job()
-    threading.Thread(target=_run, args=(aid, question, provider, model, effort, api_key),
+    threading.Thread(target=_run, args=(aid, question, provider, model, effort, api_key, context),
                      name=f"answer-{aid}", daemon=True).start()
 
 

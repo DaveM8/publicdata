@@ -128,7 +128,9 @@ th, td { text-align: left; vertical-align: top; padding: .5rem .9rem .5rem 0; bo
 tbody tr:last-child > * { border-bottom: 0; }
 thead th { font-weight: 700; border-bottom: 1px solid var(--ink); vertical-align: bottom; }
 tbody th { font-weight: 400; }
-th.n, td.n { text-align: right; padding-right: 0; padding-left: .9rem; white-space: nowrap; }
+th.n, td.n { text-align: right; padding-left: .9rem; white-space: nowrap; }
+tr > :last-child { padding-right: 0; }
+thead th.n { white-space: normal; }
 .downloads { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin-top: .9rem; }
 
 .sources ul { list-style: none; padding: 0; margin: 0 0 1rem; }
@@ -142,6 +144,44 @@ code { font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace; }
 .feedback h2 { flex-basis: 100%; }
 .feedback [role=status] { margin-top: 2.5rem; font-weight: 700; }
 .again { margin-top: 3rem; }
+
+/* Charts. Drawn by the server from the table's rows (web/chart.py). Colours for
+   more than one line are a fixed order checked for colour-blind readers. */
+:root { --m1: #2a78d6; --m2: #eb6834; --m3: #1baf7a; --m4: #eda100; }
+@media (prefers-color-scheme: dark) { :root { --m1: #3987e5; --m2: #d95926; --m3: #199e70; --m4: #c98500; } }
+.chart { margin: .5rem 0 1.5rem; font-size: .95rem; }
+.chart .measure { color: var(--muted); margin: 0 0 .5rem; }
+.bars { display: grid; grid-template-columns: minmax(4rem, max-content) minmax(3rem, 1fr) max-content; gap: .45rem .75rem; align-items: center; }
+.bar-label { max-width: 16rem; overflow-wrap: anywhere; }
+.bar-value { text-align: right; font-variant-numeric: tabular-nums lining-nums; }
+svg.bar { display: block; overflow: visible; }
+svg.bar rect { fill: var(--sea); }
+.chart .axis { stroke: var(--muted); stroke-width: 1; }
+.chart .grid { stroke: var(--rule); stroke-width: 1; }
+.plot-row { display: flex; }
+.plot-row svg { display: block; overflow: visible; flex: none; }
+.plot-row svg.plot { flex: 1 1 0; min-width: 0; }
+.chart text { fill: var(--muted); font-size: .9rem; font-variant-numeric: tabular-nums lining-nums; }
+.chart text.end { fill: var(--ink); font-weight: 700; font-size: 1rem; }
+.plot line, .swatch line { stroke-width: 2.5; stroke-linecap: round; }
+.plot circle { stroke: var(--paper); stroke-width: 2; }
+.m1 line { stroke: var(--m1); } .m1 circle { fill: var(--m1); }
+.m2 line { stroke: var(--m2); } .m2 circle { fill: var(--m2); }
+.m3 line { stroke: var(--m3); } .m3 circle { fill: var(--m3); }
+.m4 line { stroke: var(--m4); } .m4 circle { fill: var(--m4); }
+.plot.single .m1 line { stroke: var(--sea); } .plot.single .m1 circle { fill: var(--sea); }
+.legend { list-style: none; display: flex; flex-wrap: wrap; gap: .3rem 1.4rem; padding: 0; margin: 0 0 .6rem; }
+.legend li { display: flex; align-items: center; gap: .45rem; }
+@media (max-width: 30rem) {
+  .bars { grid-template-columns: minmax(0, 1fr) max-content; gap: .15rem .75rem; }
+  .bar-label { grid-column: 1 / -1; max-width: none; margin-top: .45rem; }
+}
+
+/* Earlier questions in the same conversation */
+.thread { color: var(--muted); font-size: 1rem; margin: 1rem 0 0; }
+.thread ol { list-style: none; padding: 0; margin: .2rem 0 0; }
+.thread li { padding: .15rem 0; }
+.again .new { margin-top: 1.2rem; }
 
 /* Waiting for an answer */
 .working h2 { display: flex; align-items: center; gap: .7rem; margin-top: 0; }

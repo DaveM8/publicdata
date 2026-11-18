@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS app.answer (
     created_at   timestamptz NOT NULL DEFAULT now(),
     finished_at  timestamptz
 );
+-- A follow-up question points at the answer it follows on from.
+ALTER TABLE app.answer ADD COLUMN IF NOT EXISTS parent text REFERENCES app.answer (id);
 CREATE INDEX IF NOT EXISTS answer_cache ON app.answer (qkey, created_at DESC) WHERE status = 'done';
 CREATE INDEX IF NOT EXISTS answer_client ON app.answer (client, created_at);
 CREATE INDEX IF NOT EXISTS answer_created ON app.answer (created_at);

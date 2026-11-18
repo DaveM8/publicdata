@@ -1,5 +1,6 @@
 <form class="ask" method="post" action="{{ root }}/ask">
-  <label for="question">{{ t.question_label }}</label>
+  {% if after %}<input type="hidden" name="after" value="{{ after }}">{% endif %}
+  <label for="question">{{ t.followup_label if after else t.question_label }}</label>
   {% if error %}<p class="error" id="question-error" role="alert">{{ error }}</p>{% endif %}
   <div class="ask-row">
     <textarea id="question" name="question" rows="2" maxlength="{{ max_question }}" required
@@ -7,7 +8,7 @@
               {% if autofocus %}autofocus{% endif %}>{{ question or "" }}</textarea>
     <button type="submit">{{ t.ask_button }}</button>
   </div>
-  <p class="hint" id="question-hint">{{ t.question_hint }}</p>
+  <p class="hint" id="question-hint">{{ t.followup_hint if after else t.question_hint }}</p>
   <details class="own-key">
     <summary>{{ t.own_key_summary }}</summary>
     <p>{{ t.own_key_help }}</p>
