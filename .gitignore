@@ -24,3 +24,6 @@ deploy/metabase-data/
 
 # Personal working notes (the published notes live in ~/org)
 /*.org
+
+# Clone of the Yes Deputy code, kept here for reading (it has its own repository)
+/yes-deputy/

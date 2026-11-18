@@ -20,6 +20,8 @@ dependencies = [
     "sqlite-utils>=3.36",
     "anthropic>=2.8.0",
     "markdown-it-py>=4.3.0",
+    "pyarrow>=26.0.1",
+    "pgvector>=0.5.1",
 ]
 
 [project.scripts]

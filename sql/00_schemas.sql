@@ -9,6 +9,7 @@ CREATE SCHEMA IF NOT EXISTS dgi_data;   -- loaded tables: CSO values, CSVs
 CREATE SCHEMA IF NOT EXISTS dgi_geo;    -- loaded geo layers (PostGIS, ITM)
 CREATE SCHEMA IF NOT EXISTS dgi_vec;    -- embeddings
 CREATE SCHEMA IF NOT EXISTS dgi_insight;
+CREATE SCHEMA IF NOT EXISTS dgi_oir;    -- the Oireachtas record (debates, answers) with its vectors
 
 -- Accent-, case- and quote-insensitive key for matching: 'Garda SÍOCHÁNA' -> 'garda siochana'.
 -- Use it on both sides of a comparison; always display the original text.

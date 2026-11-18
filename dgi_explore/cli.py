@@ -8,6 +8,7 @@ import argparse
 import logging
 import logging.handlers
 import sys
+from pathlib import Path
 
 from . import db
 
@@ -88,6 +89,13 @@ def cmd_insights(args):
 def cmd_dataset_views(args):
     from . import load_csv
     load_csv.dataset_views()
+
+
+def cmd_load_oireachtas(args):
+    from . import oireachtas
+    oireachtas.run(export=args.export, dry_run=args.dry_run, workers=args.workers,
+                   limit_files=args.limit_files, index=args.index, vector_index=args.vector_index,
+                   mem=args.mem)
 
 
 def cmd_ask_prepare(args):
@@ -176,6 +184,19 @@ def main(argv=None):
 
     s = sub.add_parser("dataset-views", help="rebuild the per-dataset views dgi_data.ds_<id8>")
     s.set_defaults(func=cmd_dataset_views)
+
+    s = sub.add_parser("load-oireachtas",
+                       help="load the Oireachtas chunks, vectors and answers from the Yes Deputy export into dgi_oir")
+    s.add_argument("-n", "--dry-run", action="store_true", help="list the files that would be loaded")
+    s.add_argument("--export", type=Path, default=Path("/mnt/zddb/export"),
+                   help="folder holding vectors/ and answers_*.parquet")
+    s.add_argument("-j", "--workers", type=int, default=5, help="files loaded at once")
+    s.add_argument("--limit-files", type=int, help="load at most this many vectors files")
+    s.add_argument("--index", action="store_true", help="build the record, date and word-search indexes")
+    s.add_argument("--vector-index", action="store_true",
+                   help="also build the HNSW vector index (hours; run in tmux)")
+    s.add_argument("--mem", default="32GB", help="maintenance_work_mem for the index builds")
+    s.set_defaults(func=cmd_load_oireachtas)
 
     s = sub.add_parser("ask-prepare", help="build the per-table CSO views (dgi_cso) and the ask index (dgi_ask)")
     s.set_defaults(func=cmd_ask_prepare)
