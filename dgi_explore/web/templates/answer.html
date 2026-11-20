@@ -45,7 +45,7 @@
     <li>
       <strong>{{ s.title }}</strong><br>
       {{ t.source_line.format(code=s.code, period=s.period, updated=s.updated) }}<br>
-      <a href="{{ s.link }}" rel="noopener">{{ t.source_open }}</a>
+      <a href="{{ s.link }}" target="_blank" rel="noopener">{{ t.source_open }}</a>
     </li>
     {% endfor %}
   </ul>

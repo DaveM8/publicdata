@@ -1,12 +1,13 @@
 """Database and mirror locations, shared by every step."""
 
 import logging
+import os
 import sqlite3
 from pathlib import Path
 
 import psycopg
 
-DSN = "dbname=gis"
+DSN = os.environ.get("DGI_DSN", "dbname=gis")   # DGI_DSN: e.g. a test copy
 MIRROR = Path("/mnt/storage/datagovie_mirror")
 SQL_DIR = Path(__file__).resolve().parent.parent / "sql"
 STATE_DIR = Path.home() / ".local/state/dgi-explore"

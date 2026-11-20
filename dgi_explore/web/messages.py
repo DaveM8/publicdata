@@ -9,6 +9,9 @@ EN = {
     "skip": "Skip to the main part of the page",
     "nav_ask": "Ask a question",
     "nav_about": "How it works",
+    "beta_notice": "This is a test version. Answers may be wrong, and the site may change or be "
+                   "offline at times. Please tell us about mistakes with the \u201cWas this answer "
+                   "right?\u201d buttons.",
 
     # Front page
     "home_title": "Ask a question about Ireland",
@@ -52,7 +55,7 @@ EN = {
     "sources_heading": "Where these figures come from",
     "source_line": "Central Statistics Office table {code}, covering {period}. "
                    "Last updated by the CSO on {updated}.",
-    "source_open": "Open this table on the CSO website",
+    "source_open": "Open this table on the CSO website (opens in a new tab)",
     "no_sources": "No figures were used in this answer.",
     "how_summary": "How this was worked out",
     "how_intro": "These are the steps taken to answer your question, in order. The queries "

@@ -79,6 +79,8 @@ p { margin: 0 0 1rem; }
 .hint, .note { color: var(--muted); font-size: 1rem; }
 .quiet { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
+.beta { max-width: calc(var(--measure) + 2rem); margin: 0 auto; padding: .6rem 1rem; font-size: 1rem; background: var(--wash); border-bottom: 1px solid var(--rule); }
+
 /* The question box: the one loud thing on the page. */
 .ask-title { font-size: clamp(2.1rem, 6vw, 3.1rem); letter-spacing: -.01em; margin-top: 1.5rem; }
 .lead { font-size: 1.25rem; margin: 1rem 0 2rem; max-width: 38rem; }
@@ -109,7 +111,13 @@ button.plain:hover { background: var(--sea); color: var(--sea-ink); border-color
 
 .examples ul { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--rule); }
 .examples li { border-bottom: 1px solid var(--rule); }
-.examples a { display: block; padding: .7rem 0; }
+.examples form { margin: 0; }
+.examples button.example {
+  display: block; width: 100%; text-align: left; min-height: 0; padding: .7rem 0;
+  background: none; border: 0; color: var(--sea); font-weight: 400;
+  text-decoration: underline; text-underline-offset: .18em; text-decoration-thickness: .08em;
+}
+.examples button.example:hover { background: none; color: var(--sea); text-decoration-thickness: .16em; }
 .note { margin-top: 2rem; }
 
 /* An answer */

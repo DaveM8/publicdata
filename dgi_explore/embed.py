@@ -36,13 +36,12 @@ PRICE_PER_MTOK = 0.13        # USD, text-embedding-3-large, direct (not batch)
 
 
 def _key():
-    if os.environ.get("OPENAI_API_KEY"):
-        return os.environ["OPENAI_API_KEY"]
-    env = Path.home() / "learnarr/.env"
-    for line in env.read_text().splitlines():
-        if line.startswith("OPENAI_API_KEY="):
-            return line.split("=", 1)[1].strip().strip('"').strip("'")
-    raise SystemExit("no OPENAI_API_KEY in the environment or ~/learnarr/.env")
+    from .ask.llm import find_key
+    key = find_key("OPENAI_API_KEY")
+    if not key:
+        raise SystemExit("no OPENAI_API_KEY in the environment, ~/.config/dgi-explore/keys.env "
+                         "or ~/learnarr/.env")
+    return key
 
 
 def _enc():

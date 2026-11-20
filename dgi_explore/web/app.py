@@ -14,6 +14,7 @@ Settings (environment):
     DGI_WEB_EFFORT           low, medium or high (default: llm.DEFAULT_EFFORT)
     DGI_WEB_DAILY_LIMIT      free questions per person per day (default 20)
     DGI_WEB_MONTHLY_CAP_USD  the site's own spending per month (default 100)
+    DGI_WEB_BETA             1 to show the test-version notice on every page
 """
 
 import contextlib
@@ -44,6 +45,7 @@ EFFORT = os.environ.get("DGI_WEB_EFFORT", llm.DEFAULT_EFFORT)
 DAILY_LIMIT = int(os.environ.get("DGI_WEB_DAILY_LIMIT", "20"))
 MONTHLY_CAP = float(os.environ.get("DGI_WEB_MONTHLY_CAP_USD", "100"))
 MAX_QUESTION = 400
+BETA = os.environ.get("DGI_WEB_BETA", "") not in ("", "0")
 
 # Who a question is sent to, said plainly on the page (open and honest, plan D3).
 SERVICES = {
@@ -86,7 +88,7 @@ env = Environment(loader=FileSystemLoader(HERE / "templates"),
 env.filters["markdown"] = _markdown
 env.filters["num"] = _num
 env.globals.update(t=t, root=ROOT, service=SERVICES.get(PROVIDER, PROVIDER),
-                   own_key_providers=OWN_KEY_PROVIDERS, max_question=MAX_QUESTION)
+                   own_key_providers=OWN_KEY_PROVIDERS, max_question=MAX_QUESTION, beta=BETA)
 
 
 def page(name, status=200, **ctx):

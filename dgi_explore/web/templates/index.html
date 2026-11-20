@@ -7,7 +7,7 @@
 <section class="examples" aria-labelledby="examples-title">
   <h2 id="examples-title">{{ t.examples_title }}</h2>
   <ul>
-    {% for q in t.examples %}<li><a href="{{ root }}/?q={{ q | urlencode }}">{{ q }}</a></li>{% endfor %}
+    {% for q in t.examples %}<li><form method="post" action="{{ root }}/ask"><input type="hidden" name="question" value="{{ q }}"><button type="submit" class="example">{{ q }}</button></form></li>{% endfor %}
   </ul>
 </section>
 <p class="note">{{ t.home_note }} Your question is sent to {{ service }} to be answered, so

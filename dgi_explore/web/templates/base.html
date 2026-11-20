@@ -16,6 +16,7 @@
     <a href="{{ root }}/about">{{ t.nav_about }}</a>
   </nav>
 </header>
+{% if beta %}<p class="beta">{{ t.beta_notice }}</p>{% endif %}
 <main id="main">
 {% block content %}{% endblock %}
 </main>
