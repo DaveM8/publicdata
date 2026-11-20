@@ -199,3 +199,28 @@ def test_a_follow_up_page_shows_the_whole_conversation(client, monkeypatch):
     r = client.post(webapp.ROOT + "/a/a1/feedback", data={"vote": "yes", "back": "https://evil"},
                     follow_redirects=False)
     assert r.headers["location"].endswith("/a/a1#feedback-a1")
+
+
+def test_a_question_needs_the_solved_puzzle(client, monkeypatch):
+    import hashlib
+    from dgi_explore.web import proof
+    monkeypatch.setattr(proof, "MAX_NUMBER", 500)
+    p = proof.challenge()
+    n = next(i for i in range(501) if hashlib.sha256(f"{p['salt']}{i}".encode()).hexdigest() == p["challenge"])
+    args = (p["salt"], p["challenge"], p["signature"])
+    assert not proof.check(*args, n + 1 if n < 500 else n - 1)          # wrong number
+    assert not proof.check(p["salt"], p["challenge"], "0" * 64, n)      # not signed by the site
+    assert proof.check(*args, n)                                         # solved
+    assert not proof.check(*args, n)                                     # and only once
+    assert not proof.check("1.abc", p["challenge"], p["signature"], n)  # expired / altered
+    # the form page carries a puzzle and the script; a question without the answer is refused
+    page = client.get(webapp.ROOT + "/").text
+    assert 'name="proof"' in page and "proof.js" in page
+    r = client.post(webapp.ROOT + "/ask", data={"question": "How many people live in Leitrim?"})
+    assert r.status_code == 403 and "quick check" in r.text
+
+
+def test_search_engines_are_kept_out(client):
+    r = client.get("/robots.txt")
+    assert r.status_code == 200 and "Disallow: /" in r.text
+    assert "noindex" in client.get(webapp.ROOT + "/").headers["X-Robots-Tag"]

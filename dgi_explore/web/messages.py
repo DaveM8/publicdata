@@ -94,6 +94,10 @@ EN = {
                  "first of next month. You can still ask with your own key.",
     "err_busy": "A lot of questions are being answered right now. Yours will start in a moment.",
     "err_key": "To use your own key, choose the service and paste the key.",
+    "proof_wait": "One moment…",
+    "err_proof": "Your browser did not finish the quick check this site uses to keep out "
+                 "automated programs. Press the button again. If this keeps happening, "
+                 "check that JavaScript is switched on.",
     "not_found_title": "There is nothing at this address",
     "not_found": "The answer you are looking for may have been removed, or the address may "
                  "be mistyped.",

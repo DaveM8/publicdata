@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{{ t.site_name }}{% endblock %}</title>
 <link rel="stylesheet" href="{{ root }}/static/style.css">
+{% if proof %}<meta name="proof" content="{{ proof }}" data-wait="{{ t.proof_wait }}">
+<script src="{{ root }}/static/proof.js" defer></script>{% endif %}
 {% block head %}{% endblock %}
 </head>
 <body>

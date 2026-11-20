@@ -33,7 +33,7 @@ from markdown_it import MarkdownIt
 from markupsafe import Markup
 
 from ..ask import llm
-from . import chart, files, runner, store
+from . import chart, files, proof, runner, store
 from .messages import t
 
 log = logging.getLogger("dgi")
@@ -47,6 +47,11 @@ DAILY_LIMIT = int(os.environ.get("DGI_WEB_DAILY_LIMIT", "20"))
 MONTHLY_CAP = float(os.environ.get("DGI_WEB_MONTHLY_CAP_USD", "100"))
 MAX_QUESTION = 400
 BETA = os.environ.get("DGI_WEB_BETA", "") not in ("", "0")
+# Keep search engines and well-behaved crawlers out (robots.txt and a noindex
+# header on every page). On by default; DGI_WEB_NOINDEX=0 at launch.
+NOINDEX = os.environ.get("DGI_WEB_NOINDEX", "1") not in ("", "0")
+# Ask each browser to solve a small puzzle before a question is sent (proof.py).
+PROOF = os.environ.get("DGI_WEB_PROOF", "1") not in ("", "0")
 
 # Who a question is sent to, said plainly on the page (open and honest, plan D3).
 SERVICES = {
@@ -96,6 +101,8 @@ env.globals.update(t=t, root=ROOT, service=SERVICES.get(PROVIDER, PROVIDER),
 
 
 def page(name, status=200, **ctx):
+    if PROOF:
+        ctx.setdefault("proof", json.dumps(proof.challenge()))
     return HTMLResponse(env.get_template(name).render(**ctx), status_code=status)
 
 
@@ -151,6 +158,10 @@ async def ask(request: Request):
     if len(question) > MAX_QUESTION:
         return again(t.err_long.format(n=MAX_QUESTION))
 
+    def unproved():
+        return PROOF and not proof.check(get("proof_salt"), get("proof_challenge"),
+                                         get("proof_signature"), get("proof_number"))
+
     client = _client(request)
     if own_key or own_provider in OWN_KEY_PROVIDERS:
         if not own_key or own_provider not in OWN_KEY_PROVIDERS:
@@ -158,7 +169,11 @@ async def ask(request: Request):
         provider, model, key = own_provider, own_model or llm.DEFAULT_MODELS.get(own_provider), own_key
         if not model:
             return again(t.err_key)
+        if unproved():
+            return again(t.err_proof, status=403)
     else:
+        if unproved():
+            return again(t.err_proof, status=403)
         provider, model, key = PROVIDER, MODEL, None
         hit = None if parent else store.cached(question, provider, model)
         if hit:
@@ -291,7 +306,16 @@ async def security_headers(request, call_next):
         "frame-ancestors 'none'; form-action 'self'")
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["Referrer-Policy"] = "same-origin"
+    if NOINDEX:
+        resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
     return resp
+
+
+@app.get("/robots.txt", response_class=Response)
+def robots():
+    """At the root of the domain, wherever the site itself is (ROOT)."""
+    body = "User-agent: *\nDisallow: /\n" if NOINDEX else "User-agent: *\nDisallow: /ask\n"
+    return Response(body, media_type="text/plain")
 
 
 app.include_router(router)
