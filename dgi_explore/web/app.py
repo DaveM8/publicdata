@@ -19,6 +19,7 @@ Settings (environment):
 
 import contextlib
 import json
+import re
 import logging
 import os
 import urllib.parse
@@ -166,25 +167,36 @@ async def ask(request: Request):
 
     aid = store.create(question, provider, model, bool(key), client, parent)
     runner.start(aid, question, provider, model, EFFORT, key, context)
-    return RedirectResponse(f"{ROOT}/a/{aid}", status_code=303)
+    # A follow-up opens at the new question, below the conversation so far.
+    return RedirectResponse(f"{ROOT}/a/{aid}" + (f"#t-{aid}" if parent else ""), status_code=303)
+
+
+SHOW_TURNS = 50          # earlier answers shown above a follow-up (the model is given fewer)
+
+
+def _view(row):
+    """A finished answer, ready for _turn.html."""
+    return {"row": row, "when": row["finished_at"].strftime("%-d %B %Y"),
+            "tables": [dict(tb, numeric=_numeric_cols(tb), chart_spec=chart.spec(tb))
+                       for tb in row["tables"]]}
 
 
 @router.get("/a/{aid}", response_class=HTMLResponse)
-def answer(aid: str, thanks: int = 0):
+def answer(aid: str):
     row = store.get(aid)
     if not row:
         return page("notfound.html", status=404)
+    # A follow-up's page shows the whole conversation, oldest first.
+    earlier = [_view(r) for r in store.thread(row["parent"], SHOW_TURNS)] if row["parent"] else []
     if row["status"] == "working":
         j = runner.job(aid)
-        return page("working.html", row=row, steps=list(j.events) if j else [t.working_first])
+        return page("working.html", row=row, earlier=earlier,
+                    steps=list(j.events) if j else [t.working_first])
     if row["status"] == "failed":
         reason = {"setup": t.failed_setup, "interrupted": t.failed_interrupted}.get(
             row["error"], t.failed_generic)
-        return page("failed.html", row=row, reason=reason)
-    tables = [dict(tb, numeric=_numeric_cols(tb), chart_spec=chart.spec(tb)) for tb in row["tables"]]
-    earlier = store.thread(row["parent"]) if row["parent"] else []
-    return page("answer.html", row=row, tables=tables, thanks=bool(thanks), earlier=earlier,
-                when=row["finished_at"].strftime("%-d %B %Y"))
+        return page("failed.html", row=row, reason=reason, earlier=earlier)
+    return page("answer.html", row=row, turns=earlier + [_view(row)])
 
 
 @router.get("/a/{aid}/events")
@@ -247,7 +259,11 @@ async def feedback(aid: str, request: Request):
     vote = {"yes": 1, "no": -1}.get((form.get("vote") or [""])[0])
     if vote and store.get(aid):
         store.set_feedback(aid, vote)
-    return RedirectResponse(f"{ROOT}/a/{aid}?thanks=1#feedback", status_code=303)
+    # Back to the page the reply was given on, which may be a later answer in
+    # the same conversation; only to an answer that exists.
+    back = (form.get("back") or [""])[0]
+    back = back if re.fullmatch(r"[A-Za-z0-9_-]{1,32}", back) and store.get(back) else aid
+    return RedirectResponse(f"{ROOT}/a/{back}#feedback-{aid}", status_code=303)
 
 
 @contextlib.asynccontextmanager

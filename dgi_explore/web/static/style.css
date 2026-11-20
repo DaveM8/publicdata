@@ -72,9 +72,9 @@ a:hover { text-decoration-thickness: .16em; }
 .top nav { display: flex; gap: 1.25rem; }
 .foot { border-top: 1px solid var(--rule); color: var(--muted); font-size: 1rem; padding-top: 1rem; padding-bottom: 2rem; }
 
-h1, h2 { line-height: 1.2; margin: 0; }
+h1, h2, h3 { line-height: 1.2; margin: 0; }
 h1 { font-size: 2rem; }
-h2 { font-size: 1.3rem; margin-top: 2.5rem; margin-bottom: .6rem; }
+h2, .turn h3 { font-size: 1.3rem; margin-top: 2.5rem; margin-bottom: .6rem; }
 p { margin: 0 0 1rem; }
 .hint, .note { color: var(--muted); font-size: 1rem; }
 .quiet { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -122,7 +122,7 @@ button.plain:hover { background: var(--sea); color: var(--sea-ink); border-color
 
 /* An answer */
 .asked { color: var(--muted); font-size: 1rem; margin: 1rem 0 .2rem; }
-.question { font-size: clamp(1.5rem, 4.5vw, 2rem); border-left: 8px solid var(--gorse); padding-left: 1rem; margin-bottom: 2rem; overflow-wrap: anywhere; }
+.question { font-size: clamp(1.5rem, 4.5vw, 2rem); border-left: 8px solid var(--gorse); padding-left: 1rem; margin-top: 0; margin-bottom: 2rem; overflow-wrap: anywhere; }
 .prose > :first-child { font-size: 1.4rem; line-height: 1.4; }
 .prose h2, .prose h3 { font-size: 1.2rem; margin: 2rem 0 .5rem; }
 .prose ul, .prose ol { padding-left: 1.3rem; }
@@ -149,9 +149,12 @@ thead th.n { white-space: normal; }
 pre { background: var(--wash); padding: .7rem .8rem; overflow-x: auto; margin: .4rem 0 0; font-size: .9rem; line-height: 1.45; }
 code { font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace; }
 .feedback form { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
-.feedback h2 { flex-basis: 100%; }
+.feedback h2, .feedback h3 { flex-basis: 100%; }
 .feedback [role=status] { margin-top: 2.5rem; font-weight: 700; }
 .again { margin-top: 3rem; }
+/* A conversation: each later question and answer below the one before, set
+   apart by a rule so it reads as the next turn. */
+.turn.later { margin-top: 3.5rem; padding-top: 2rem; border-top: 2px solid var(--rule); }
 
 /* Charts. Drawn by the server from the table's rows (web/chart.py). Colours for
    more than one line are a fixed order checked for colour-blind readers. */
@@ -186,20 +189,17 @@ svg.bar rect { fill: var(--sea); }
 }
 
 /* Earlier questions in the same conversation */
-.thread { color: var(--muted); font-size: 1rem; margin: 1rem 0 0; }
-.thread ol { list-style: none; padding: 0; margin: .2rem 0 0; }
-.thread li { padding: .15rem 0; }
 .again .new { margin-top: 1.2rem; }
 
 /* Waiting for an answer */
-.working h2 { display: flex; align-items: center; gap: .7rem; margin-top: 0; }
+.working h2, .working h3 { display: flex; align-items: center; gap: .7rem; margin-top: 0; }
 .pulse { width: .9rem; height: .9rem; border-radius: 50%; background: var(--sea); flex: none; animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 50% { transform: scale(.55); opacity: .5; } }
 .steps { padding-left: 1.4rem; margin: 1rem 0 1.5rem; }
 .steps li { margin-bottom: .35rem; }
 .steps li:last-child { font-weight: 700; }
 .failed { border-left: 8px solid var(--alarm); padding-left: 1rem; }
-.failed h2 { margin-top: 0; }
+.failed h2, .failed h3 { margin-top: 0; }
 
 @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
 @media print {

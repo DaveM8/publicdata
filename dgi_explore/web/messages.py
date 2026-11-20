@@ -48,6 +48,7 @@ EN = {
                     "or come back to it later at the same address.",
     "working_first": "Reading your question",
     "you_asked": "You asked",
+    "you_asked_next": "Then you asked",
     "answer_heading": "Answer",
     "download_excel": "Download as Excel",
     "download_csv": "or as CSV",
@@ -73,7 +74,6 @@ EN = {
     "followup_hint": "It is read together with the question and answer above. "
                      "For example: And how has that changed since 2011?",
     "new_question": "Ask a new, unrelated question",
-    "thread_title": "Earlier in this conversation",
     "chart_bar_label": "Bar chart: {title}. The same figures are in the table that follows.",
     "chart_line_label": "Line chart: {title}. The same figures are in the table that follows.",
     "failed_title": "This question could not be answered",

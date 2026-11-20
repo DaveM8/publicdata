@@ -1,11 +1,23 @@
 {% extends "base.html" %}
+{% from "_turn.html" import turn, head with context %}
 {% block title %}{{ t.failed_title }} · {{ t.site_name }}{% endblock %}
 {% block content %}
-<p class="asked">{{ t.you_asked }}</p>
-<h1 class="question">{{ row.question }}</h1>
+{% for v in earlier %}{{ turn(v, loop.first, row.id) }}{% endfor %}
+<article class="turn{% if earlier %} later{% endif %}" id="t-{{ row.id }}">
+{{ head(row, not earlier) }}
 <section class="failed" role="alert">
-  <h2>{{ t.failed_title }}</h2>
+  <h{{ 3 if earlier else 2 }}>{{ t.failed_title }}</h{{ 3 if earlier else 2 }}>
   <p>{{ reason }}</p>
+  {% if earlier %}
+  {#- A follow-up that failed: ask it again in the same conversation. -#}
+  <form method="post" action="{{ root }}/ask">
+    <input type="hidden" name="after" value="{{ row.parent }}">
+    <input type="hidden" name="question" value="{{ row.question }}">
+    <button type="submit">{{ t.try_again }}</button>
+  </form>
+  {% else %}
   <p><a class="button" href="{{ root }}/?q={{ row.question | urlencode }}">{{ t.try_again }}</a></p>
+  {% endif %}
 </section>
+</article>
 {% endblock %}

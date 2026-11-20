@@ -1,18 +1,21 @@
 {% extends "base.html" %}
+{% from "_turn.html" import turn, head with context %}
 {% block title %}{{ t.working_title }} · {{ t.site_name }}{% endblock %}
 {% block head %}
 <noscript><meta http-equiv="refresh" content="5"></noscript>
 <script src="{{ root }}/static/ask.js" defer></script>
 {% endblock %}
 {% block content %}
-<p class="asked">{{ t.you_asked }}</p>
-<h1 class="question">{{ row.question }}</h1>
+{% for v in earlier %}{{ turn(v, loop.first, row.id) }}{% endfor %}
+<article class="turn{% if earlier %} later{% endif %}" id="t-{{ row.id }}">
+{{ head(row, not earlier) }}
 <section class="working" aria-labelledby="working-title">
-  <h2 id="working-title"><span class="pulse" aria-hidden="true"></span>{{ t.working_title }}</h2>
+  <h{{ 3 if earlier else 2 }} id="working-title"><span class="pulse" aria-hidden="true"></span>{{ t.working_title }}</h{{ 3 if earlier else 2 }}>
   <ol id="steps" class="steps" aria-live="polite" data-events="{{ root }}/a/{{ row.id }}/events"
       data-shown="{{ steps | length }}">
     {% for s in steps %}<li>{{ s }}</li>{% endfor %}
   </ol>
   <p class="hint">{{ t.working_wait }}</p>
 </section>
+</article>
 {% endblock %}

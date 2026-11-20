@@ -155,3 +155,47 @@ def test_postgres_numeric_stays_a_number():
     assert tools._plain(Decimal("19.8")) == 19.8 and isinstance(tools._plain(Decimal("19.8")), float)
     assert tools._plain(Decimal("137970")) == 137970 and isinstance(tools._plain(Decimal("137970")), int)
     assert tools._plain(None) is None and tools._plain("x") == "x"
+
+
+def _answer(aid, question, parent=None, status="done", feedback=None):
+    import datetime
+    return {"id": aid, "question": question, "parent": parent, "status": status,
+            "answer_md": f"Answer to {question}", "tables": [dict(TABLE, chart="bar")],
+            "sources": ROW["sources"], "steps": [{"say": "Looked", "sql": "SELECT 1"}],
+            "model": "m", "seconds": 3.0, "own_key": False, "feedback": feedback, "error": None,
+            "finished_at": datetime.datetime(2026, 11, 20)}
+
+
+def test_a_follow_up_page_shows_the_whole_conversation(client, monkeypatch):
+    rows = {"a1": _answer("a1", "First?"), "b-2": _answer("b-2", "Second?", "a1", feedback=1),
+            "c_3": _answer("c_3", "Third?", "b-2")}
+    monkeypatch.setattr(webapp.store, "get", rows.get)
+    monkeypatch.setattr(webapp.store, "thread", lambda aid, limit=6: (
+        [rows["a1"]] if aid == "a1" else [rows["a1"], rows["b-2"]]))
+    page = client.get(webapp.ROOT + "/a/c_3").text
+    page = page[page.index("<main"):]                 # not the <title>
+    # every turn in full, oldest first, the first question as the page's h1
+    assert page.index("First?") < page.index("Second?") < page.index("Third?")
+    assert page.count("<svg") >= 3 and page.count("Dún Laoghaire") >= 3
+    assert '<h1 class="question">First?</h1>' in page and '<h2 class="question">Third?</h2>' in page
+    assert page.count("<h1") == 1 and 'id="t-c_3"' in page
+    # each turn's ids are its own, and a reply comes back to this page
+    assert page.count('id="answer-a1"') == 1 and page.count('id="answer-c_3"') == 1
+    assert 'name="back" value="c_3"' in page and page.count("Thank you") == 1
+    # the follow-up form follows on from the latest answer
+    assert 'name="after" value="c_3"' in page
+
+    # a follow-up still being worked on shows the conversation above its steps
+    rows["c_3"] = dict(rows["c_3"], status="working")
+    page = client.get(webapp.ROOT + "/a/c_3").text
+    page = page[page.index("<main"):]
+    assert page.index("Second?") < page.index('id="steps"') and "Answer to Second?" in page
+
+    # feedback on an earlier turn returns to the page it was given on
+    monkeypatch.setattr(webapp.store, "set_feedback", lambda aid, vote: None)
+    r = client.post(webapp.ROOT + "/a/a1/feedback", data={"vote": "yes", "back": "c_3"},
+                    follow_redirects=False)
+    assert r.headers["location"].endswith("/a/c_3#feedback-a1")
+    r = client.post(webapp.ROOT + "/a/a1/feedback", data={"vote": "yes", "back": "https://evil"},
+                    follow_redirects=False)
+    assert r.headers["location"].endswith("/a/a1#feedback-a1")

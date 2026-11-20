@@ -1,0 +1,84 @@
+{#- One question and its answer. An answer page shows the whole conversation:
+    every earlier turn, then the latest, each drawn by this macro. The first
+    question is the page's h1; later ones are h2, and the headings inside a
+    turn sit one level below its question. `page_id` is the answer the page
+    is for, so a "Was this right?" reply comes back to the same page. -#}
+{% macro turn(v, first, page_id) %}
+{% set row = v.row %}{% set h = 1 if first else 2 %}
+<article class="turn{% if not first %} later{% endif %}" id="t-{{ row.id }}">
+<p class="asked">{{ t.you_asked if first else t.you_asked_next }}</p>
+<h{{ h }} class="question">{{ row.question }}</h{{ h }}>
+
+<section class="answer" aria-labelledby="answer-{{ row.id }}">
+  <h{{ h + 1 }} id="answer-{{ row.id }}" class="quiet">{{ t.answer_heading }}</h{{ h + 1 }}>
+  <div class="prose">{{ row.answer_md | markdown }}</div>
+
+  {% for tb in v.tables %}
+  <figure class="figures">
+    <figcaption>{{ tb.title }}</figcaption>
+    {% if tb.chart_spec %}{% include "_chart.html" %}{% endif %}
+    <div class="scroll" tabindex="0" role="group" aria-label="{{ tb.title }}">
+      <table>
+        <thead><tr>{% for hd in tb.headings %}<th scope="col"{% if tb.numeric[loop.index0] %} class="n"{% endif %}>{{ hd }}</th>{% endfor %}</tr></thead>
+        <tbody>
+        {% for r in tb.rows %}<tr>{% for c in r %}{% if loop.first and not tb.numeric[0] %}<th scope="row">{{ c | num }}</th>{% else %}<td{% if tb.numeric[loop.index0] %} class="n"{% endif %}>{{ c | num }}</td>{% endif %}{% endfor %}</tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="downloads">
+      <a class="button" href="{{ root }}/a/{{ row.id }}/table/{{ loop.index }}.xlsx">{{ t.download_excel }}</a>
+      <a href="{{ root }}/a/{{ row.id }}/table/{{ loop.index }}.csv">{{ t.download_csv }}</a>
+    </p>
+  </figure>
+  {% endfor %}
+</section>
+
+<section class="sources" aria-labelledby="sources-{{ row.id }}">
+  <h{{ h + 1 }} id="sources-{{ row.id }}">{{ t.sources_heading }}</h{{ h + 1 }}>
+  {% if row.sources %}
+  <ul>
+    {% for s in row.sources %}
+    <li>
+      <strong>{{ s.title }}</strong><br>
+      {{ t.source_line.format(code=s.code, period=s.period, updated=s.updated) }}<br>
+      <a href="{{ s.link }}" target="_blank" rel="noopener">{{ t.source_open }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p>{{ t.no_sources }}</p>{% endif %}
+  <p class="hint">{{ t.check_note }}</p>
+</section>
+
+<details class="how">
+  <summary>{{ t.how_summary }}</summary>
+  <p>{{ t.how_intro }}</p>
+  <ol>
+    {% for s in row.steps %}
+    <li>{{ s.say }}{% if s.sql %}<pre><code>{{ s.sql }}</code></pre>{% endif %}</li>
+    {% endfor %}
+  </ol>
+  <p class="hint">{{ t.answered_by.format(model=row.model, seconds=row.seconds | round | int, date=v.when) }}
+  {% if row.own_key %}{{ t.answered_own_key }}{% endif %}</p>
+</details>
+
+<section class="feedback" id="feedback-{{ row.id }}" aria-labelledby="feedback-q-{{ row.id }}">
+  {% if row.feedback %}
+  <p role="status">{{ t.feedback_thanks }}</p>
+  {% else %}
+  <form method="post" action="{{ root }}/a/{{ row.id }}/feedback">
+    <input type="hidden" name="back" value="{{ page_id }}">
+    <h{{ h + 1 }} id="feedback-q-{{ row.id }}">{{ t.feedback_q }}</h{{ h + 1 }}>
+    <button name="vote" value="yes" class="plain">{{ t.feedback_yes }}</button>
+    <button name="vote" value="no" class="plain">{{ t.feedback_no }}</button>
+  </form>
+  {% endif %}
+</section>
+</article>
+{% endmacro %}
+
+{#- The question still being worked on, or the one that failed, after the earlier turns. -#}
+{% macro head(row, first) %}
+<p class="asked">{{ t.you_asked if first else t.you_asked_next }}</p>
+{% if first %}<h1 class="question">{{ row.question }}</h1>{% else %}<h2 class="question">{{ row.question }}</h2>{% endif %}
+{% endmacro %}
