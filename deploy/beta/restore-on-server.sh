@@ -25,6 +25,18 @@ if psql -d "$DB" -XAtc "SELECT 1 FROM dgi_data.cso_value LIMIT 1" 2>/dev/null | 
     exit 1
 fi
 
+# The site's tests (and a first start of the site) create an empty schema app,
+# which would stop the restore. Drop it only while it holds no answers.
+if psql -d "$DB" -XAtc "SELECT 1 FROM pg_namespace WHERE nspname = 'app'" | grep -q 1; then
+    n=$(psql -d "$DB" -XAtc "SELECT count(*) FROM app.answer" 2>/dev/null || echo 0)
+    if [ "$n" != 0 ]; then
+        echo "$DB already holds $n answers in app.answer: not restoring over them" >&2
+        exit 1
+    fi
+    say "dropping the empty schema app left by the tests"
+    psql -d "$DB" -X -v ON_ERROR_STOP=1 -c "DROP SCHEMA app CASCADE"
+fi
+
 say "restoring ($JOBS at a time)"
 pg_restore -d "$DB" -j "$JOBS" --no-owner --no-privileges --exit-on-error "$DUMP"
 
