@@ -84,8 +84,11 @@ def _numeric_cols(table):
     return cols
 
 
+# Templates are read once, when the site starts, and never again: a git pull
+# on the server must not give the running (old) code new templates. On 20 Nov
+# that blanked every answer page until the site was restarted.
 env = Environment(loader=FileSystemLoader(HERE / "templates"),
-                  autoescape=select_autoescape(["html"]))
+                  autoescape=select_autoescape(["html"]), auto_reload=False, cache_size=-1)
 env.filters["markdown"] = _markdown
 env.filters["num"] = _num
 env.globals.update(t=t, root=ROOT, service=SERVICES.get(PROVIDER, PROVIDER),
@@ -268,6 +271,8 @@ async def feedback(aid: str, request: Request):
 
 @contextlib.asynccontextmanager
 async def _lifespan(app):
+    for name in env.list_templates():
+        env.get_template(name)
     store.setup()
     log.info("web: answers from %s %s, %d free questions a day, cap %.0f USD a month, root %r",
              PROVIDER, MODEL, DAILY_LIMIT, MONTHLY_CAP, ROOT)
