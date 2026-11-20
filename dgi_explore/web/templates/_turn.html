@@ -41,7 +41,9 @@
     {% for s in row.sources %}
     <li>
       <strong>{{ s.title }}</strong><br>
-      {{ t.source_line.format(code=s.code, period=s.period, updated=s.updated) }}<br>
+      {% set own = owner(s.code) %}
+      {% if own %}{{ t.source_line_other.format(owner=own, code=s.code, period=s.period, updated=s.updated) }}
+      {% else %}{{ t.source_line.format(code=s.code, period=s.period, updated=s.updated) }}{% endif %}<br>
       <a href="{{ s.link }}" target="_blank" rel="noopener">{{ t.source_open }}</a>
     </li>
     {% endfor %}

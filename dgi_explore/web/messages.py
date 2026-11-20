@@ -56,6 +56,9 @@ EN = {
     "sources_heading": "Where these figures come from",
     "source_line": "Central Statistics Office table {code}, covering {period}. "
                    "Last updated by the CSO on {updated}.",
+    "source_line_other": "Table {code} from {owner}, covering {period}. The CSO publishes it "
+                         "on its data website for them; it is not on the main CSO website. "
+                         "Last updated on {updated}.",
     "source_open": "Open this table on the CSO website (opens in a new tab)",
     "no_sources": "No figures were used in this answer.",
     "how_summary": "How this was worked out",
@@ -114,8 +117,9 @@ EN = {
 
     # About page
     "about_title": "How it works",
-    "footer": "Figures: Central Statistics Office, published under the CSO's open data "
-              "licence. This site is not run by the CSO or any public body.",
+    "footer": "Figures: the Central Statistics Office, and the other public bodies named with "
+              "each table, from the CSO's open data website data.cso.ie. This site is not run by "
+              "the CSO or any public body.",
 }
 
 

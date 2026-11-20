@@ -13,6 +13,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
 
+from . import store
+
 
 def _width(values):
     return max(8, min(60, max(len(str(v)) for v in values) + 2))
@@ -41,7 +43,8 @@ def xlsx(row, table, page_url):
              ("Answer page", page_url),
              ("Downloaded", date.today().isoformat())]
     for s in row["sources"]:
-        lines += [("Source", f'Central Statistics Office, {s["title"]} ({s["code"]})'),
+        who = store.owner(s["code"]) or "Central Statistics Office"
+        lines += [("Source", f'{who}, {s["title"]} ({s["code"]}), published on data.cso.ie'),
                   ("  Period covered", s["period"]),
                   ("  Last updated by the CSO", s["updated"]),
                   ("  Link", s["link"])]

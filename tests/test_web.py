@@ -224,3 +224,11 @@ def test_search_engines_are_kept_out(client):
     r = client.get("/robots.txt")
     assert r.status_code == 200 and "Disallow: /" in r.text
     assert "noindex" in client.get(webapp.ROOT + "/").headers["X-Robots-Tag"]
+
+
+def test_tables_the_cso_only_publishes_name_their_owner(client):
+    from dgi_explore.web import store
+    if store._read_owners is None or not store.owner("NRA01"):
+        pytest.skip("no table index on this machine")
+    assert store.owner("NRA01") == store.owner("nra01") == "Transport Infrastructure Ireland"
+    assert store.owner("F1001") is None and store.owner(None) is None

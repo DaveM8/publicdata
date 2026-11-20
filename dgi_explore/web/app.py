@@ -96,7 +96,7 @@ env = Environment(loader=FileSystemLoader(HERE / "templates"),
                   autoescape=select_autoescape(["html"]), auto_reload=False, cache_size=-1)
 env.filters["markdown"] = _markdown
 env.filters["num"] = _num
-env.globals.update(t=t, root=ROOT, service=SERVICES.get(PROVIDER, PROVIDER),
+env.globals.update(t=t, root=ROOT, service=SERVICES.get(PROVIDER, PROVIDER), owner=store.owner,
                    own_key_providers=OWN_KEY_PROVIDERS, max_question=MAX_QUESTION, beta=BETA)
 
 

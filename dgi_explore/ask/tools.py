@@ -236,6 +236,7 @@ def _info(conn, table):
              , d.title
              , d.uri
              , p.name
+             , j.extension -> 'copyright' ->> 'name'
           FROM dgi_ask.cso_info i
                JOIN dgi_prof.jsonstat j USING (sha256)
                LEFT JOIN dgi_cat.dataset d ON d.id = i.dataset_id
@@ -249,7 +250,7 @@ def describe_table(table, find=None):
         if not row:
             return {"error": f"no table named {table!r}; use a name from search_tables"}
         (mid, matrix, view, label, updated, columns, stats, geo, n, dims, notes,
-         ds_title, ds_uri, publisher) = row
+         ds_title, ds_uri, publisher, owner) = row
         key = textio.search_key(find) if find else None
         cols = []
         for c, d in zip(columns, dims):
@@ -276,7 +277,9 @@ def describe_table(table, find=None):
             "statistics": stats,
             "also_columns": ["value (number)", "unit (text)"],
             "sample_rows": [dict(zip(names, r)) for r in sample.fetchall()],
-            "source": {"publisher": publisher or "Central Statistics Office",
+            # Some tables on the CSO's site belong to another body (TII, the
+            # Department of Health, Eurostat ...); the CSO only publishes them.
+            "source": {"publisher": _owner(owner) or publisher or "Central Statistics Office",
                        "dataset": ds_title, "link": ds_uri,
                        "cso_link": f"https://data.cso.ie/table/{matrix}"},
         }
@@ -344,6 +347,12 @@ def run_sql(sql):
 _IDENT = re.compile(r"[a-z_][a-z0-9_]*")
 
 
+def _owner(name):
+    """Who a table belongs to, from its JSON-stat copyright; '' for the CSO's own."""
+    name = (name or "").strip()
+    return "" if name in ("", "Central Statistics Office, Ireland") else name
+
+
 def sources_for(sqls):
     """The CSO tables named in these queries, for the list of sources under an answer."""
     names = sorted({w for q in sqls for w in _IDENT.findall(q.lower())})
@@ -359,15 +368,17 @@ def sources_for(sqls):
                  , i.time_from
                  , i.time_to
                  , d.uri
+                 , j.extension -> 'copyright' ->> 'name'
               FROM dgi_ask.cso_info i
+                   JOIN dgi_prof.jsonstat j USING (sha256)
                    LEFT JOIN dgi_cat.dataset d ON d.id = i.dataset_id
              WHERE i.view_name = ANY(%s)
           ORDER BY i.matrix""", (names,)).fetchall()
     return [{"table": v, "code": m, "title": label, "updated": upd,
              "period": t0 if t0 == t1 else f"{t0} to {t1}",
-             "publisher": "Central Statistics Office",
+             "publisher": _owner(own) or "Central Statistics Office",
              "link": f"https://data.cso.ie/table/{m}", "catalogue_link": uri}
-            for v, m, label, upd, t0, t1, uri in rows]
+            for v, m, label, upd, t0, t1, uri, own in rows]
 
 
 FUNCS = {"search_tables": search_tables, "describe_table": describe_table,

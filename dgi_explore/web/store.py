@@ -34,6 +34,34 @@ def client_hash(address):
     return hashlib.sha256(f"{_secret()}|{date.today()}|{address}".encode()).hexdigest()[:24]
 
 
+_owners = None
+
+
+def owner(code):
+    """The body a CSO-hosted table belongs to when it isn't the CSO itself
+    (Transport Infrastructure Ireland for NRA01, ...), else None. Read once from
+    each table's JSON-stat copyright, and used when a page is shown, so answers
+    saved before 20 Nov are right too."""
+    global _owners
+    if _owners is None:
+        try:
+            _owners = _read_owners()
+        except Exception:        # no table index here: say CSO, as before, rather than fail
+            return None
+    return _owners.get((code or "").upper())
+
+
+def _read_owners():
+    with db.connect() as conn:
+        return dict(conn.execute("""
+            SELECT
+                   upper(i.matrix)
+                 , j.extension -> 'copyright' ->> 'name'
+              FROM dgi_ask.cso_info i
+                   JOIN dgi_prof.jsonstat j USING (sha256)
+             WHERE j.extension -> 'copyright' ->> 'name' <> 'Central Statistics Office, Ireland'""").fetchall())
+
+
 def qkey(question):
     return " ".join(textio.search_key(question).split()).rstrip("?!. ")
 
