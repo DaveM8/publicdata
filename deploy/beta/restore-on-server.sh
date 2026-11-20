@@ -26,14 +26,14 @@ if psql -d "$DB" -XAtc "SELECT 1 FROM dgi_data.cso_value LIMIT 1" 2>/dev/null | 
 fi
 
 say "restoring ($JOBS at a time)"
-pg_restore -d "$DB" -j "$JOBS"--no-owner --no-privileges --exit-on-error "$DUMP"
+pg_restore -d "$DB" -j "$JOBS" --no-owner --no-privileges --exit-on-error "$DUMP"
 
 say "starting with no answers: the trial questions asked on scierstar are not carried over"
 psql -d "$DB" -X -v ON_ERROR_STOP=1 -c "TRUNCATE app.answer"
 
 say "statistics for the planner"
 # (dave is not a superuser, so the system tables are skipped; that is harmless)
-vacuumdb -q -d "$DB" -j "$JOBS"--analyze-only 2>&1 | grep -v "permission denied to analyze" || true
+vacuumdb -q -d "$DB" -j "$JOBS" --analyze-only 2>&1 | grep -v "permission denied to analyze" || true
 
 say "the per-table CSO views (dgi_cso) and the ask index"
 cd ~/dgi-explore
