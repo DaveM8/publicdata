@@ -9,6 +9,7 @@ in which case the page shows the table alone.
 """
 
 import math
+import re
 
 MAX_BARS = 35           # room for the 31 local authorities
 MAX_POINTS = 80
@@ -49,6 +50,45 @@ def _label(v):
     if _is_num(v) and float(v).is_integer():
         return str(int(v))          # a year held as a number: 2022, not 2,022
     return "" if v is None else str(v)
+
+
+MONTHS = {m: i for i, m in enumerate(
+    "jan feb mar apr may jun jul aug sep oct nov dec".split(), 1)}
+
+
+def _time_key(v):
+    """Where a time label falls, for putting a line chart's points in time order:
+    2022, "2022", "2022M03", "2022Q1", "2022W05", "2022-03-31", "2022 March",
+    "March 2022", "2021/2022". None when the label isn't a time."""
+    if _is_num(v) and float(v).is_integer() and 1800 <= v <= 2200:
+        return (int(v), 0, 0)
+    s = str(v).strip()
+    m = re.fullmatch(r"(\d{4})-(\d{1,2})(?:-(\d{1,2}))?", s)
+    if m:
+        return (int(m[1]), int(m[2]), int(m[3] or 0))
+    m = re.fullmatch(r"(\d{4})\s*([MQW])\s*(\d{1,2})", s, re.I)
+    if m:
+        k = int(m[3])
+        return {"M": (int(m[1]), k, 0), "Q": (int(m[1]), k * 3, 0),
+                "W": (int(m[1]), 0, k)}[m[2].upper()]
+    m = re.search(r"\b(1[89]\d\d|2[01]\d\d)\b", s)
+    if not m:
+        return None
+    rest = (s[:m.start()] + " " + s[m.end():]).lower()
+    words = re.findall(r"[a-z]+", rest)
+    if len(words) > 1 or (words and words[0][:3] not in MONTHS) \
+            or re.sub(r"[a-z]+|[\s/–-]|\d{2,4}", "", rest):
+        return None              # more than a year and a month: not a time label
+    return (int(m[1]), MONTHS[words[0][:3]] if words else 0, 0)
+
+
+def _in_time_order(rows):
+    """Rows oldest first when the first column is a time; otherwise as given.
+    A query often lists the newest first, but a line chart reads left to right."""
+    keys = [_time_key(r[0]) for r in rows]
+    if None in keys:
+        return rows
+    return [r for _, r in sorted(zip(keys, rows), key=lambda kr: kr[0])]
 
 
 def _ticks(lo, hi, about=4):
@@ -94,7 +134,7 @@ def _bar(table):
 
 
 def _line(table):
-    rows = table["rows"]
+    rows = _in_time_order(table["rows"])
     cols = _wanted(table, [i for i in range(1, len(table["headings"]))
                            if _numeric(table, i)])[:MAX_SERIES]
     if not cols or not 3 <= len(rows) <= MAX_POINTS:
@@ -125,10 +165,10 @@ def _line(table):
 
     labels = [_label(r[0]) for r in rows]
     want = 4 if max(len(s) for s in labels) > 7 else 6
-    every = math.ceil(n / want)          # label every so many points, evenly, from the first
-    xlabels = [{"x": xs[i], "text": labels[i],
+    every = math.ceil(n / want)          # label every so many points, evenly, back from the last,
+    xlabels = [{"x": xs[i], "text": labels[i],   # so the latest date is always labelled
                 "anchor": "start" if i == 0 else "end" if i == n - 1 else "middle"}
-               for i in range(0, n, every)]
+               for i in sorted(range(n - 1, -1, -every))]
     tick_rows = [{"y": y(v), "text": _axis_text(v)} for v in ticks]
     return {"kind": "line", "series": series, "xlabels": xlabels, "ticks": tick_rows,
             "axis_em": round(0.58 * max(len(tk["text"]) for tk in tick_rows) + 0.8, 1),

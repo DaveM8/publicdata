@@ -108,6 +108,26 @@ def test_line_chart_scale_and_labels():
     assert [s["name"] for s in only_b["series"]] == ["B"] and only_b["measure"] == "B"
 
 
+def test_line_chart_runs_from_the_first_date_on_the_left():
+    from dgi_explore.web import chart
+    rows = [["2026", 1039.9], ["2025", 1039.9], ["2024", 1077.3], ["2023", 1105.3]]   # ORDER BY year DESC
+    spec = chart.spec({"title": "x", "headings": ["Year", "Cattle"], "rows": rows, "chart": "line"})
+    assert spec["xlabels"][0]["text"] == "2023" and spec["xlabels"][-1]["text"] == "2026"
+    rows12 = [[str(y), float(y)] for y in range(2026, 2014, -1)]
+    labels = [x["text"] for x in chart.spec({"title": "x", "headings": ["Year", "A"], "rows": rows12,
+                                             "chart": "line"})["xlabels"]]
+    assert labels == ["2016", "2018", "2020", "2022", "2024", "2026"]
+    assert spec["series"][0]["end"]["text"] == "1,039.9"
+    k = chart._time_key
+    assert k(2022.0) < k("2022M03") < k("2022Q2") < k("2022 October") < k("2022-12-31") < k("2023")
+    assert k("March 2022") == k("2022M03") and k("2021/2022") < k("2022/2023")
+    assert k("Co. Cork") is None and k("Dublin 2022 electoral area") is None
+    months = ["2024M12", "2024M02", "2025M01"]
+    assert [r[0] for r in chart._in_time_order([[m, 1] for m in months])] == ["2024M02", "2024M12", "2025M01"]
+    names = [["Cork", 1], ["Antrim", 2], ["Kerry", 3]]
+    assert chart._in_time_order(names) == names     # not times: left as given
+
+
 def test_follow_up_carries_the_earlier_turns():
     from dgi_explore.ask import agent
     text = agent._with_context("And for Mayo?", [
