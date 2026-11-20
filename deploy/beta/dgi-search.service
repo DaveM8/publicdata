@@ -1,0 +1,19 @@
+[Unit]
+Description=dgi-search: meaning search over the dataset descriptions, used by the Ask site
+After=network.target postgresql.service
+
+[Service]
+User=dave
+WorkingDirectory=/home/dave/dgi-explore
+# Holds the 45,000 description vectors in memory (about 200 MB). Each search
+# embeds the question with OpenAI, so OPENAI_API_KEY must be in
+# ~/.config/dgi-explore/keys.env.
+ExecStart=/home/dave/.local/bin/uv run --frozen uvicorn dgi_explore.search_app:app --host 127.0.0.1 --port 8002
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

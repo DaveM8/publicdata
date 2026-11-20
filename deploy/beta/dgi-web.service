@@ -1,0 +1,20 @@
+[Unit]
+Description=Ask about Ireland: the public question page (dgi-explore web)
+After=network.target postgresql.service dgi-search.service
+Wants=dgi-search.service
+
+[Service]
+User=dave
+WorkingDirectory=/home/dave/dgi-explore
+# Who answers, limits, beta notice: /etc/dgi-explore/web.env (see web.env.example).
+EnvironmentFile=/etc/dgi-explore/web.env
+# One process only: answers in progress are held in its memory (web/runner.py).
+ExecStart=/home/dave/.local/bin/uv run --frozen dgi-explore web --host 127.0.0.1 --port 8003
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

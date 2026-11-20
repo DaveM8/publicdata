@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en-IE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask about Ireland</title>
+<meta name="description" content="Ask a question about Ireland in plain words and get the answer from the Central Statistics Office's own figures. Opening soon.">
+<style>
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 400; font-display: swap;
+  src: url("fonts/atkinson-hyperlegible-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 700; font-display: swap;
+  src: url("fonts/atkinson-hyperlegible-latin-700-normal.woff2") format("woff2"); }
+:root {
+  --paper: #ffffff; --ink: #14213d; --muted: #4f5b76; --rule: #cfd6e2;
+  --wash: #eef3f6; --sea: #0b5c7a;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --paper: #0f1626; --ink: #e7ebf3; --muted: #a7b1c6; --rule: #33405c;
+          --wash: #18223a; --sea: #7cc4db; }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 1.125rem/1.55 "Atkinson Hyperlegible", Verdana, "Segoe UI", sans-serif;
+}
+main { max-width: 40rem; margin: 0 auto; padding: 14vh 1rem 3rem; }
+h1 { font-size: clamp(2.2rem, 7vw, 3.4rem); line-height: 1.05; margin: 0 0 1rem; letter-spacing: -0.01em; }
+.lead { font-size: 1.3rem; margin: 0 0 2.5rem; }
+figure { margin: 0 0 2.5rem; border-left: 4px solid var(--sea); padding: .2rem 0 .2rem 1.1rem; }
+.q { margin: 0 0 .6rem; color: var(--muted); }
+.a { margin: 0 0 .4rem; font-size: 1.25rem; }
+.a strong { font-size: 1.6rem; }
+figcaption { font-size: .95rem; color: var(--muted); }
+a { color: var(--sea); }
+a:focus-visible { outline: 3px solid #f2c230; outline-offset: 2px; }
+.when { margin: 0; }
+footer { max-width: 40rem; margin: 0 auto; padding: 0 1rem 2rem; font-size: .9rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Ask about Ireland</h1>
+  <p class="lead">Ask a question about Ireland in plain words. The answer comes
+  from the Central Statistics Office's own figures, with the table it was
+  worked out from.</p>
+
+  <figure>
+    <p class="q">How many people lived in County Leitrim at the 2022 census?</p>
+    <p class="a"><strong>35,199</strong> people</p>
+    <figcaption>From the CSO table
+      <a href="https://data.cso.ie/table/G0420">Population per County (G0420)</a></figcaption>
+  </figure>
+
+  <p class="when">A test version opens here shortly.</p>
+</main>
+<footer>
+  <p>This page sets no cookies and keeps no record of your visit.</p>
+</footer>
+</body>
+</html>
