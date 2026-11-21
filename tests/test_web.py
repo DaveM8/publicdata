@@ -232,3 +232,82 @@ def test_tables_the_cso_only_publishes_name_their_owner(client):
         pytest.skip("no table index on this machine")
     assert store.owner("NRA01") == store.owner("nra01") == "Transport Infrastructure Ireland"
     assert store.owner("F1001") is None and store.owner(None) is None
+
+
+# Security review 20261120_ask-security-review.org, findings 1, 2, 3, 4 and 8.
+
+def test_an_ipv6_block_counts_as_one_visitor():
+    from dgi_explore.web import limits, store
+    assert limits.network("2a01:4f8:13b:155f::2") == limits.network("2a01:4f8:13b:155f:ffff::9") \
+        == "2a01:4f8:13b:155f::/64"
+    assert limits.network("2a01:4f8:13b:1560::2") != limits.network("2a01:4f8:13b:155f::2")
+    assert limits.network("::ffff:203.0.113.5") == limits.network("203.0.113.5") == "203.0.113.5"
+    assert store.client_hash("2a01:db8:1:2::1") == store.client_hash("2a01:db8:1:2:aaaa::7")
+    assert store.client_hash("203.0.113.5") != store.client_hash("203.0.113.6")
+
+
+def test_questions_per_minute_and_open_connections_are_limited():
+    from dgi_explore.web import limits
+    k = "test-visitor"
+    assert all(limits.may_ask(k, now=1000 + i) for i in range(limits.ASK_PER_MINUTE))
+    assert not limits.may_ask(k, now=1010)
+    assert limits.may_ask(k, now=1061)                # a minute later
+    taken = [limits.open_events("v2") for _ in range(limits.EVENTS_PER_VISITOR + 1)]
+    assert taken == [True] * limits.EVENTS_PER_VISITOR + [False]
+    for _ in range(limits.EVENTS_PER_VISITOR):
+        limits.close_events("v2")
+    assert limits.open_events("v2")
+    limits.close_events("v2")
+
+
+def test_live_steps_stream_and_its_limit(client):
+    from dgi_explore.web import limits, runner
+    j = runner.Job()
+    j.say("Looking")
+    j.finish()
+    runner._jobs["streamtest"] = j
+    try:
+        r = client.get(webapp.ROOT + "/a/streamtest/events", headers={"x-real-ip": "198.51.100.7"})
+        assert r.status_code == 200 and "Looking" in r.text and "event: done" in r.text
+        key = limits.visitor("198.51.100.7")
+        for _ in range(limits.EVENTS_PER_VISITOR):
+            limits.open_events(key)
+        r = client.get(webapp.ROOT + "/a/streamtest/events", headers={"x-real-ip": "198.51.100.7"})
+        assert r.status_code == 429
+        for _ in range(limits.EVENTS_PER_VISITOR):
+            limits.close_events(key)
+    finally:
+        runner._jobs.pop("streamtest", None)
+
+
+def test_downloads_never_contain_live_formulas():
+    from openpyxl import load_workbook
+    bad = '=HYPERLINK("https://example.com","click")'
+    table = dict(TABLE, title="=1+1", headings=["@SUM(A1)", "Daonra"], rows=[[bad, 5.0], ["-x", 1.0]])
+    wb = load_workbook(io.BytesIO(files.xlsx(dict(ROW, question="+cmd"), table, "http://e/a/1")))
+    cells = [c for ws in wb for row in ws.iter_rows() for c in row if isinstance(c.value, str)]
+    assert not [c for c in cells if c.data_type == "f"]
+    assert wb["Table"]["A2"].value == bad and wb["Table"]["B2"].value == 5
+    text = files.csv_bytes(table).decode("utf-8-sig")
+    assert "'=HYPERLINK" in text and "'@SUM" in text and ",5\r\n" in text
+
+
+def test_answers_link_only_to_the_cso():
+    html = webapp._markdown("[CSO](https://data.cso.ie/table/F1001) [bad](https://evil.example/x) "
+                            "<https://evil.example> [js](javascript:alert(1))")
+    assert 'href="https://data.cso.ie/table/F1001"' in html
+    assert html.count("<a ") == 1 and "evil.example/x" not in html and "javascript:" not in html.split("[js]")[0]
+
+
+def test_an_own_key_error_message_is_not_kept(monkeypatch):
+    from dgi_explore.web import runner
+    saved = {}
+    monkeypatch.setattr(runner.agent, "answer", lambda *a, **k: (_ for _ in ()).throw(
+        RuntimeError("model service error 401: Incorrect API key provided: sk-proj-abcd****wxyz")))
+    monkeypatch.setattr(runner.store, "fail", lambda aid, err, steps: saved.update(err=err))
+    runner._jobs["ownkey"] = runner.Job()
+    runner._run("ownkey", "q", "openai", "m", None, "sk-proj-secret", None)
+    assert saved["err"] == "RuntimeError" and "sk-" not in saved["err"]
+    runner._jobs["sitekey"] = runner.Job()
+    runner._run("sitekey", "q", "deepseek", "m", None, None, None)
+    assert "401" in saved["err"]                      # the site's own errors keep their detail

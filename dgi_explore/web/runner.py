@@ -81,11 +81,18 @@ def _run(aid, question, provider, model, effort, api_key, context):
         else:
             store.fail(aid, f"stopped: {a.stop or 'no answer'}", steps)
     except SystemExit as e:               # no key, unknown provider: a set-up problem
-        log.error("answer %s: %s", aid, e)
+        log.error("answer %s: %s", aid, "own key not usable" if api_key else e)
         store.fail(aid, "setup", steps)
     except Exception as e:
-        log.exception("answer %s failed", aid)
-        store.fail(aid, f"{type(e).__name__}: {e}", steps)
+        if api_key:
+            # A provider's error text can quote part of the key, and a person's
+            # own key is never stored or logged: keep only the kind of error
+            # (security review finding 8).
+            log.error("answer %s failed with the person's own key: %s", aid, type(e).__name__)
+            store.fail(aid, type(e).__name__, steps)
+        else:
+            log.exception("answer %s failed", aid)
+            store.fail(aid, f"{type(e).__name__}: {e}", steps)
     finally:
         _slots.release()
         j.finish()

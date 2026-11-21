@@ -17,6 +17,7 @@ Settings (environment):
     DGI_WEB_BETA             1 to show the test-version notice on every page
 """
 
+import asyncio
 import contextlib
 import json
 import re
@@ -33,7 +34,7 @@ from markdown_it import MarkdownIt
 from markupsafe import Markup
 
 from ..ask import llm
-from . import chart, files, proof, runner, store
+from . import chart, files, limits, proof, runner, store
 from .messages import t
 
 log = logging.getLogger("dgi")
@@ -45,6 +46,9 @@ MODEL = os.environ.get("DGI_WEB_MODEL") or llm.DEFAULT_MODELS.get(PROVIDER)
 EFFORT = os.environ.get("DGI_WEB_EFFORT", llm.DEFAULT_EFFORT)
 DAILY_LIMIT = int(os.environ.get("DGI_WEB_DAILY_LIMIT", "20"))
 MONTHLY_CAP = float(os.environ.get("DGI_WEB_MONTHLY_CAP_USD", "100"))
+# Spending cap per day, so one bad day can't use up the whole month (security
+# review finding 2). Default: a fifth of the monthly cap.
+DAILY_CAP = float(os.environ.get("DGI_WEB_DAILY_CAP_USD") or MONTHLY_CAP / 5)
 MAX_QUESTION = 400
 BETA = os.environ.get("DGI_WEB_BETA", "") not in ("", "0")
 # Keep search engines and well-behaved crawlers out (robots.txt and a noindex
@@ -63,6 +67,31 @@ SERVICES = {
 OWN_KEY_PROVIDERS = {"anthropic": "Claude (Anthropic)", "openai": "OpenAI"}
 
 _md = MarkdownIt("commonmark", {"html": False}).disable(["image"]).enable(["table"])
+
+# Links the model may make: only to the CSO and data.gov.ie. Any other link in
+# its text is shown as plain words, so a crafted question can't put a link to
+# another site on a publicdata.ie page (security review finding 4). The
+# source links under each answer are made by the site, not the model.
+LINK_HOSTS = {"cso.ie", "www.cso.ie", "data.cso.ie", "data.gov.ie", "www.data.gov.ie"}
+
+
+def _linked_ok(href):
+    u = urllib.parse.urlsplit(href or "")
+    return u.scheme == "https" and (u.hostname or "").lower() in LINK_HOSTS
+
+
+def _drop_other_links(state):
+    for block in state.tokens:
+        for tok in block.children or []:
+            if tok.type == "link_open":
+                keep = _linked_ok(tok.attrGet("href"))
+                if keep:
+                    tok.attrSet("rel", "noopener nofollow")
+            if tok.type in ("link_open", "link_close") and not keep:
+                tok.type, tok.tag, tok.content, tok.attrs = "text", "", "", {}
+
+
+_md.core.ruler.push("drop_other_links", _drop_other_links)
 
 
 def _markdown(text):
@@ -106,11 +135,15 @@ def page(name, status=200, **ctx):
     return HTMLResponse(env.get_template(name).render(**ctx), status_code=status)
 
 
+def _address(request):
+    """The visitor's address, from nginx (X-Real-IP). Used for limits, never stored."""
+    return (request.headers.get("x-real-ip")
+            or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+            or (request.client.host if request.client else "unknown"))
+
+
 def _client(request):
-    address = (request.headers.get("x-real-ip")
-               or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-               or (request.client.host if request.client else "unknown"))
-    return store.client_hash(address)
+    return store.client_hash(_address(request))
 
 
 def _url(request, path):
@@ -158,9 +191,14 @@ async def ask(request: Request):
     if len(question) > MAX_QUESTION:
         return again(t.err_long.format(n=MAX_QUESTION))
 
-    def unproved():
-        return PROOF and not proof.check(get("proof_salt"), get("proof_challenge"),
-                                         get("proof_signature"), get("proof_number"))
+    def stopped():
+        """The bot puzzle, then the per-minute limit (an IPv6 /64 counts as one visitor)."""
+        if PROOF and not proof.check(get("proof_salt"), get("proof_challenge"),
+                                     get("proof_signature"), get("proof_number")):
+            return again(t.err_proof, status=403)
+        if not limits.may_ask(limits.visitor(_address(request))):
+            return again(t.err_rate, status=429)
+        return None
 
     client = _client(request)
     if own_key or own_provider in OWN_KEY_PROVIDERS:
@@ -169,11 +207,11 @@ async def ask(request: Request):
         provider, model, key = own_provider, own_model or llm.DEFAULT_MODELS.get(own_provider), own_key
         if not model:
             return again(t.err_key)
-        if unproved():
-            return again(t.err_proof, status=403)
+        if (no := stopped()):
+            return no
     else:
-        if unproved():
-            return again(t.err_proof, status=403)
+        if (no := stopped()):
+            return no
         provider, model, key = PROVIDER, MODEL, None
         hit = None if parent else store.cached(question, provider, model)
         if hit:
@@ -182,6 +220,8 @@ async def ask(request: Request):
             return again(t.err_daily.format(n=DAILY_LIMIT), status=429)
         if store.spent_this_month() >= MONTHLY_CAP:
             return again(t.err_month, status=429)
+        if store.spent_today() >= DAILY_CAP:
+            return again(t.err_today, status=429)
 
     aid = store.create(question, provider, model, bool(key), client, parent)
     runner.start(aid, question, provider, model, EFFORT, key, context)
@@ -217,29 +257,42 @@ def answer(aid: str):
     return page("answer.html", row=row, turns=earlier + [_view(row)])
 
 
-@router.get("/a/{aid}/events")
-def events(aid: str):
-    """The steps of an answer in progress, as server-sent events."""
-    j = runner.job(aid)
+EVENTS_POLL = 0.5          # seconds between looks at an answer's progress
+EVENTS_MAX = 15 * 60       # give up on a stream after this long
 
-    def stream():
-        if not j:
-            yield "event: done\ndata: {}\n\n"
-            return
-        sent = 0
-        while True:
-            with j.cond:
-                if sent >= len(j.events) and not j.done:
-                    j.cond.wait(timeout=15)
+
+@router.get("/a/{aid}/events")
+async def events(aid: str, request: Request):
+    """The steps of an answer in progress, as server-sent events.
+
+    Async on purpose: a waiting stream holds no worker thread, so open
+    connections can't starve the ordinary pages (security review finding 1),
+    and each visitor may hold only a few at once."""
+    j = runner.job(aid)
+    if not j:
+        return Response("event: done\ndata: {}\n\n", media_type="text/event-stream")
+    key = limits.visitor(_address(request))
+    if not limits.open_events(key):
+        # The page then falls back to reloading itself every few seconds.
+        return Response("too many open connections", status_code=429, media_type="text/plain")
+
+    async def stream():
+        try:
+            sent, quiet, began = 0, 0, asyncio.get_running_loop().time()
+            while asyncio.get_running_loop().time() - began < EVENTS_MAX:
                 new, done = j.events[sent:], j.done
-            for e in new:
-                yield f"data: {json.dumps(e)}\n\n"
-            sent += len(new)
-            if done and sent >= len(j.events):
-                yield "event: done\ndata: {}\n\n"
-                return
-            if not new:
-                yield ": still working\n\n"
+                for e in new:
+                    yield f"data: {json.dumps(e)}\n\n"
+                sent += len(new)
+                if done and sent >= len(j.events):
+                    yield "event: done\ndata: {}\n\n"
+                    return
+                quiet = 0 if new else quiet + 1
+                if quiet and quiet % 30 == 0:
+                    yield ": still working\n\n"
+                await asyncio.sleep(EVENTS_POLL)
+        finally:
+            limits.close_events(key)
 
     return StreamingResponse(stream(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})

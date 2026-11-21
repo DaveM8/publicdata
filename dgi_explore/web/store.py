@@ -30,8 +30,10 @@ def _secret():
 
 def client_hash(address):
     """Who is asking, for the daily limit only. Changes every day, so it cannot
-    be used to follow a person over time, and the address itself is never stored."""
-    return hashlib.sha256(f"{_secret()}|{date.today()}|{address}".encode()).hexdigest()[:24]
+    be used to follow a person over time, and the address itself is never stored.
+    An IPv6 address counts by its /64 (limits.network)."""
+    from .limits import network
+    return hashlib.sha256(f"{_secret()}|{date.today()}|{network(address)}".encode()).hexdigest()[:24]
 
 
 _owners = None
@@ -179,6 +181,15 @@ def spent_this_month():
               FROM app.answer
              WHERE NOT own_key
                AND created_at >= date_trunc('month', now())""").fetchone()[0])
+
+
+def spent_today():
+    with db.connect() as conn:
+        return float(conn.execute("""
+            SELECT coalesce(sum(cost_usd), 0)
+              FROM app.answer
+             WHERE NOT own_key
+               AND created_at >= current_date""").fetchone()[0])
 
 
 def set_feedback(aid, vote):

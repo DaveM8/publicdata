@@ -16,6 +16,24 @@ from openpyxl.utils import get_column_letter
 from . import store
 
 
+# Text that a spreadsheet would run as a formula. Headings, titles and text
+# columns come from the model's query, so a crafted question could otherwise
+# put a live formula in a download (security review finding 3).
+FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _as_text(ws):
+    """Every text cell that looks like a formula is stored as plain text."""
+    for row in ws.iter_rows():
+        for cell in row:
+            if isinstance(cell.value, str) and cell.value.startswith(FORMULA_START):
+                cell.data_type = "s"
+
+
+def _csv_safe(v):
+    return "'" + v if isinstance(v, str) and v.startswith(FORMULA_START) else v
+
+
 def _width(values):
     return max(8, min(60, max(len(str(v)) for v in values) + 2))
 
@@ -59,6 +77,8 @@ def xlsx(row, table, page_url):
         cell.alignment = Alignment(wrap_text=True, vertical="top")
     src.column_dimensions["A"].width = 28
     src.column_dimensions["B"].width = 100
+    _as_text(ws)
+    _as_text(src)
 
     out = io.BytesIO()
     wb.save(out)
@@ -69,9 +89,9 @@ def csv_bytes(table):
     """CSV with a byte-order mark, so that Excel shows the fadas correctly."""
     out = io.StringIO()
     w = csv.writer(out)
-    w.writerow(table["headings"])
+    w.writerow([_csv_safe(h) for h in table["headings"]])
     for r in table["rows"]:
-        w.writerow([int(v) if isinstance(v, float) and v.is_integer() else v for v in r])
+        w.writerow([int(v) if isinstance(v, float) and v.is_integer() else _csv_safe(v) for v in r])
     return ("﻿" + out.getvalue()).encode("utf-8")
 
 

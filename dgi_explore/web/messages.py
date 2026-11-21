@@ -95,6 +95,10 @@ EN = {
     "err_month": "This month's free questions have all been used. The site pays for each "
                  "answer and has reached its budget. Free questions start again on the "
                  "first of next month. You can still ask with your own key.",
+    "err_today": "Today's free questions have all been used: the site pays for each answer "
+                 "and keeps to a daily budget. Free questions start again tomorrow. You can "
+                 "still ask with your own key.",
+    "err_rate": "That is a lot of questions in one minute. Wait a minute, then ask again.",
     "err_busy": "A lot of questions are being answered right now. Yours will start in a moment.",
     "err_key": "To use your own key, choose the service and paste the key.",
     "proof_wait": "One moment…",
